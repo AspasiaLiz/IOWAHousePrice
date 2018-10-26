@@ -1,0 +1,305 @@
+---
+title: "Project_HousePrediction_Data Exploration"
+author: "Hyunkyung Kim"
+date: "October 11, 2018"
+output: word_document
+---
+
+```{r}
+#install.packages("caret")
+#install.packages("dplyr")
+library(caret)
+library(dplyr)
+
+library(leaps)
+```
+
+## Import Data and Save a Copy##
+housedata - original data
+housedatac - working copy of the data
+
+```{r}
+housedata<-read.csv("C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\train.csv")
+housedatac<-housedata
+
+```
+
+## Investigating the variables.
+## Checking # of N/A data 
+
+```{r}
+str(housedata)
+
+```
+## Checking for duplicates & uniques : Both 1460 rows - meaning No duplicate
+## Display features that has non zero N/As.
+
+```{r}
+
+nrow(housedata)
+nrow(unique(housedata))
+
+NAs<-colSums(is.na(housedata))
+NAs[NAs>0]
+
+```
+## Number of rows = # of unique rows : no duplicate data
+## Features that has N/As are displayed - Will work with that.
+
+
+
+## Data Description ##
+Checking Min/Max/quartiles for numerical, and table for categorical variables.
+```{r}
+summary(housedata)
+```
+## Data Visualization & basic transformation##
+## Before this, going to do some basic data cleaning ##
+
+
+## CLEANING DATA ##
+
+#1. Remove ID
+ID is not really relative data here. It just identifies the rows.
+```{r}
+housedatac<-select(housedatac, -c(Id))
+```
+
+
+# 2. MSSubClass to factor.
+MSSubclass is actually categorical - represented as numeric. Need to change to factor.
+```{r}
+housedatac$MSSubClass<-as.factor(housedatac$MSSubClass)
+```
+
+MSSubClass: Identifies the type of dwelling involved in the sale.	
+	
+20	1-STORY 1946 & NEWER ALL STYLES
+30	1-STORY 1945 & OLDER
+40	1-STORY W/FINISHED ATTIC ALL AGES
+45	1-1/2 STORY - UNFINISHED ALL AGES
+50	1-1/2 STORY FINISHED ALL AGES
+60	2-STORY 1946 & NEWER
+70	2-STORY 1945 & OLDER
+75	2-1/2 STORY ALL AGES
+80	SPLIT OR MULTI-LEVEL
+85	SPLIT FOYER
+90	DUPLEX - ALL STYLES AND AGES
+120	1-STORY PUD (Planned Unit Development) - 1946 & NEWER
+150	1-1/2 STORY PUD - ALL AGES
+160	2-STORY PUD - 1946 & NEWER
+180	PUD - MULTILEVEL - INCL SPLIT LEV/FOYER
+190	2 FAMILY CONVERSION - ALL STYLES AND AGES
+
+# Dividing into numerical and categorical columns to visualize some data.
+
+# Numerical
+
+```{r}
+
+# Numerical into nums
+nums <- unlist(lapply(housedatac, is.numeric))  
+housedata_num<-housedatac[ , nums]
+
+colnames(housedata_num)
+
+
+
+
+```
+
+# Categorical
+```{r}
+# Categorical into cat. 
+
+cats <-unlist(lapply(housedatac,is.factor))
+housedata_cat<-housedatac[,cats]
+
+
+
+colnames(housedata_cat)
+```
+
+
+
+
+# Initial Plots for Numerical Data
+
+
+
+
+## Plot numerical - Histogram ##
+```{r, echo=FALSE}
+#sapply(housedata_num, hist,main=colnames(housedata_num), )
+par(mfrow=c(2,3))
+mapply(hist,as.data.frame(housedata_num),main=colnames(housedata_num),xlab='' ,breaks=20, col="blue")
+
+
+```
+
+## Plot numerical 2 - Boxplot ## 
+```{r}
+par(mfrow=c(2,5))
+# Where does this c(1:10) come from?
+
+mapply(boxplot,data.frame(housedata_num[,c(1:12)]),main=colnames(housedata_num))
+```
+
+
+## Plot Categorical - Bar Plot ##
+
+```{r}
+# par(mfrow=c(1,2))
+# Barplots needs to be in table first in order to plot.
+for (i in 1:44)
+(
+
+barplot(table(housedata_cat[,i],useNA="ifany"), col="red", las=2, main=colnames(housedata_cat[i]))
+)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+***  missing data ***
+Remove VS Impute?: 
+Column	# of NA
+
+Alley	1369
+PoolQC	1453
+Fence	1179
+MiscFeature	1406
+FireplaceQu	690
+
+
+1. Option 1 -opt1h_cat 
+Remove. Alley  to MiscFeature  - The
+```{r}
+
+opt1h_cat
+
+opt2h_cat
+
+
+```
+
+
+
+# In order to add new level, 
+levels(x)<-c(levels(x),"None")  #Add the extra level to your factor
+x[is.na(x)] <- "None"  
+```{r}
+levels(housedata_cat$Alley)<-c(levels(housedata_cat$Alley),"NoAlley")
+housedata_cat$Alley[is.na(housedata_cat$Alley)]<-"NoAlley"
+table(housedata_cat$Alley)
+
+levels(housedata_cat$PoolQC)<-c(levels(housedata_cat$PoolQC),"NoPool")
+housedata_cat$PoolQC[is.na(housedata_cat$PoolQC)]<-"NoPool"
+table(housedata_cat$PoolQC)
+
+
+levels(housedata_cat$Fence)<-c(levels(housedata_cat$Fence),"NoFence")
+housedata_cat$Fence[is.na(housedata_cat$Fence)]<-"NoFence"
+table(housedata_cat$Fence)
+
+levels(housedata_cat$MiscFeature)<-c(levels(housedata_cat$MiscFeature),"NoMiscFeature")
+housedata_cat$MiscFeature[is.na(housedata_cat$MiscFeature)]<-"NoMiscFeature"
+table(housedata_cat$MiscFeature)
+
+levels(housedata_cat$FireplaceQu)<-c(levels(housedata_cat$FireplaceQu),"None")
+housedata_cat$FireplaceQu[is.na(housedata_cat$FireplaceQu)]<-"None"
+table(housedata_cat$FireplaceQu)
+
+
+```
+
+
+
+
+
+
+```{r}
+housedatac<-housedata
+housedatac$MSSubClass<-as.factor(housedata$MSSubClass)
+str(housedatac)
+
+
+
+```{r}
+housedatac<-housedata
+housdatac<-housedatac[,c("Id")]
+#house_NA_I<-housedatac[,-c('Alley','FireplaceQu','PoolQC','Fence'	,'MiscFeature')]
+#house_NA_R<-housedatac[,-c(1,2,3)]
+#housedatac<-housedatac[,-c(7,58,73,74,75)]
+
+
+```
+
+
+
+Correlation between numerical variables
+```{r}
+library(corrplot)
+corrplot(cor(housedata_num,use="complete.obs"), method="ellipse")
+cor(housedata_num,use="complete.obs")
+```
+Correlation between numerical variables
+```{r}
+
+corrplot(cor(housedata_num), method="number")
+```
+# Side work - checking relationship between lot area and lot frontage
+```{r}
+plot(housedata_num$LotFrontage,housedata_num$LotArea, xlim=c(0,200),ylim=c(0,60000))
+lm(housedata_num$LotFrontage~housedata_num$LotArea)
+
+```
+Feature selection
+
+```{r}
+library(MASS)
+
+
+housedata_clean<-data.frame(c(housedata_cat,housedata_num))
+
+housedata_clean2<-na.omit(housedata_clean)
+full1<-lm(housedata_num$SalePrice~housedata_num$MSSubClass,data=housedata_num)
+#full<-lm(housedata_clean2$SalePrice~., data=housedata_clean2)
+#null<-lm(housedata_clean$SalePrice~1, data=housedata_clean)
+#StepF<-StepAIC(null, scope=list(lower=null, upper=full), direction="foward", trace=TRUE)
+str(housedata_clean2)
+```
+
+Plot the numerical variables
+```{r}
+#install.packages("VIM")
+#library(VIM)
+#summary(housedatac)
+#housedata_imp<-kNN(housedata_cat,variable="LotFrontage", k=6)
+```
