@@ -1,0 +1,6 @@
+"0","# par(mfrow=c(1,2))"
+"0","# Barplots needs to be in table first in order to plot."
+"0","for (i in 1:44)"
+"0","("
+"0","barplot(table(housedata_cat[,i],useNA=""ifany""), col=""red"", las=2, main=colnames(housedata_cat[i]))"
+"0",")"

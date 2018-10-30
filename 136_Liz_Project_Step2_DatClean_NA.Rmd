@@ -1,0 +1,634 @@
+---
+title: "136_Liz_Proj_Step2_CleanUpMissingData"
+author: "Hyunkyung Kim"
+date: "October 26, 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+
+```{r}
+library(caret)
+library(dplyr)
+
+
+```
+
+# Call in Dataset
+H_Orig will be original copy.
+H_Working will be working copy
+
+
+```{r}
+H_Orig<-read.csv("C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\train.csv")
+H_Working<-H_Orig
+
+```
+
+# Again Remove ID from working copy and change MsSubClass
+
+
+#1. Remove ID
+ID is not really relative data here. It just identifies the rows.
+```{r}
+H_Working<-select(H_Working, -c(Id))
+```
+
+
+# 2. MSSubClass to factor.
+MSSubclass is actually categorical - represented as numeric. Need to change to factor.
+```{r}
+H_Working$MSSubClass<-as.factor(H_Working$MSSubClass)
+```
+
+
+
+# While working with NAs, will change more of the Ordinal attributes from factors to numeric, then impute NAs
+
+Below are the items to change from factors to numerics
+
+Col Name	type	N/A(%)	R - Output	Description
+FireplaceQu	F	47%	Factor w/ 5 levels "Ex","Fa","Gd",..: NA 5 5 3 5 NA 3 5 5 5 ...	 Fireplace quality
+ExterCond	F	0%	Factor w/ 5 levels "Ex","Fa","Gd",..: 5 5 5 5 5 5 5 5 5 5 ...	 Evaluates the present condition of the material on the exterior
+GarageCond	F	6%	Factor w/ 5 levels "Ex","Fa","Gd",..: 5 5 5 5 5 5 5 5 5 5 ...	 Garage condition
+GarageQual	F	6%	Factor w/ 5 levels "Ex","Fa","Gd",..: 5 5 5 5 5 5 5 5 2 3 ...	 Garage quality
+HeatingQC	F	0%	Factor w/ 5 levels "Ex","Fa","Gd",..: 1 1 1 3 1 1 1 1 3 1 ...	 Heating quality and condition
+ExterQual	F	0%	Factor w/ 4 levels "Ex","Fa","Gd",..: 3 4 3 4 3 4 3 4 4 4 ...	 Evaluates the quality of the material on the exterior 
+KitchenQual	F	0%	Factor w/ 4 levels "Ex","Fa","Gd",..: 3 4 3 3 3 4 3 4 4 4 ...	 Kitchen quality
+BsmtQual	F	3%	Factor w/ 4 levels "Ex","Fa","Gd",..: 3 3 3 4 3 3 1 3 4 4 ...	 Evaluates the height of the basement
+PoolQC	F	100%	Factor w/ 3 levels "Ex","Fa","Gd": NA NA NA NA NA NA NA NA NA NA ...	 Pool quality
+
+
+Functional	F	0%	Factor w/ 7 levels "Maj1","Maj2",..: 7 7 7 7 7 7 7 7 3 7 ...
+BsmtFinType2	F	3%	Factor w/ 6 levels "ALQ","BLQ","GLQ",..: 6 6 6 6 6 6 6 2 6 6 ...
+BsmtFinType1	F	3%	Factor w/ 6 levels "ALQ","BLQ","GLQ",..: 3 1 3 1 3 3 3 1 6 3 ...
+Fence	F	81%	Factor w/ 4 levels "GdPrv","GdWo",..: NA NA NA NA NA 3 NA NA NA NA ...
+BsmtExposure	F	3%	Factor w/ 4 levels "Av","Gd","Mn",..: 4 2 3 4 1 4 1 3 4 4 ...
+PavedDrive	F	0%	Factor w/ 3 levels "N","P","Y": 3 3 3 3 3 3 3 3 3 3 ...
+LandSlope	F	0%	Factor w/ 3 levels "Gtl","Mod","Sev": 1 1 1 1 1 1 1 1 1 1 ...
+GarageFinish	F	6%	Factor w/ 3 levels "Fin","RFn","Unf": 2 2 2 3 2 3 2 2 3 2 ...
+# 5 Level Ex, Fa, Gd, Po, TA ones:
+
+       Ex	Excellent
+       Gd	Good
+       TA	Average/Typical
+       Fa	Fair
+       Po	Poor
+
+FireplaceQu
+ExterCond
+GarageCond
+GarageQual
+HeatingQC
+
+```{r}
+# Check orders
+levels(H_Orig$GarageQual)
+levels(H_Orig$GarageCond)
+levels(H_Orig$FireplaceQu)
+levels(H_Orig$ExterCond)
+levels(H_Orig$HeatingQC)
+```
+
+Also will impute NAs here into 0 because they do not exist, the quality should be less than poor.
+So I will impute NA's in the H_Orig to 0 in the H_Working
+
+GQual1[is.na(GQual1)]<-0
+```{r}
+H_Working$GarageQual <- c(5,2,4,1,3)[as.numeric(H_Orig$GarageQual)]
+H_Working$GarageQual[is.na(H_Working$GarageQual)]<-0
+
+H_Working$GarageCond = c(5,2,4,1,3)[as.numeric(H_Orig$GarageCond)]
+H_Working$GarageCond[is.na(H_Working$GarageCond)]<-0
+
+
+H_Working$FireplaceQu = c(5,2,4,1,3)[as.numeric(H_Orig$FireplaceQu)]
+H_Working$FireplaceQu[is.na(H_Working$FireplaceQu)]<-0
+
+H_Working$ExterCond = c(5,2,4,1,3)[as.numeric(H_Orig$ExterCond)]
+# No NA so not needed - H_Working$ExterCond[is.na(H_Working$ExterCond)]<-0
+
+H_Working$HeatingQC<-c(5,2,4,1,3)[as.numeric(H_Orig$HeatingQC)]
+H_Working$HeatingQC[is.na(H_Working$HeatingQC)]<-0
+
+# Compare Each to Confirm
+table(H_Orig$GarageQual, useNA = 'ifany')
+table(H_Working$GarageQual, useNA = 'ifany')
+
+table(H_Orig$GarageCond, useNA = 'ifany')
+table(H_Working$GarageCond, useNA = 'ifany')
+
+table(H_Orig$FireplaceQu, useNA = 'ifany')
+table(H_Working$FireplaceQu, useNA = 'ifany')
+
+
+table(H_Orig$ExterCond, useNA = 'ifany')
+table(H_Working$ExterCond, useNA = 'ifany')
+
+table(H_Orig$HeatingQC, useNA = 'ifany')
+table(H_Working$HeatingQC, useNA = 'ifany')
+
+```
+
+Can see NAs were imputed.
+
+# 4 Level Ex, Fa, Gd, Po, TA ones:
+
+
+ExterQual
+KitchenQual
+BsmtQual
+BsmtCond
+
+
+#Check Levels: 
+```{r}
+levels(H_Orig$ExterQual)
+levels(H_Orig$KitchenQual)
+levels(H_Orig$BsmtQual)
+levels(H_Orig$BsmtCond)
+
+```
+Looks like top 3 doesn't have any poor level.
+I Will make this 2,3,4,5 since the description has poor just that probably nothing applied.
+
+BsmtCond is missing Ex, so will change that to 2,4,1,3
+Also NAs  BsmtQUal/BsmtCon will be imputed to 0.
+
+
+```{r}
+
+H_Working$ExterQual<- c(5,2,4,3)[as.numeric(H_Orig$ExterQual)]
+H_Working$KitchenQual <-c(5,2,4,3)[as.numeric(H_Orig$KitchenQual)]
+
+H_Working$BsmtQual<-c(5,2,4,3)[as.numeric(H_Orig$BsmtQual)]
+H_Working$BsmtQual[is.na(H_Working$BsmtQual)]<-0
+
+H_Working$BsmtCond <-c(2,4,1,3)[as.numeric(H_Orig$BsmtCond)]
+H_Working$BsmtCond[is.na(H_Working$BsmtCond)]<-0
+# Again Compare with original
+
+table(H_Orig$ExterQual,useNA="ifany")
+table(H_Working$ExterQual,useNA="ifany")
+
+table(H_Orig$KitchenQual,useNA="ifany")
+table(H_Working$KitchenQual,useNA="ifany")
+
+table(H_Orig$BsmtQual,useNA="ifany")
+table(H_Working$BsmtQual,useNA="ifany")
+
+table(H_Orig$BsmtCond,useNA="ifany")
+table(H_Working$BsmtCond,useNA="ifany")
+
+
+```
+# 3 Level
+PoolQC has 3 levels as below.
+
+```{r}
+levels(H_Orig$PoolQC)
+
+```
+To make this consistent, will make this 5(Ex), 2(Fa), 4(Gd) & Impute 0 for NAs since it means no pool.
+
+```{r}
+H_Working$PoolQC<-c(5,2,4)[as.numeric(H_Orig$PoolQC)]
+H_Working$PoolQC[is.na(H_Working$PoolQC)]<-0
+
+table(H_Orig$PoolQC, useNA='ifany' )
+table(H_Working$PoolQC, useNA = 'ifany')
+
+```
+
+# Functional	F	0%	Factor w/ 7 levels "Maj1","Maj2",..: 7 7 7 7 7 7 7 7 3 7 ...
+
+
+7       Typ	Typical Functionality
+6       Min1	Minor Deductions 1
+5       Min2	Minor Deductions 2
+4       Mod	Moderate Deductions
+3       Maj1	Major Deductions 1
+2       Maj2	Major Deductions 2
+1        Sev	Severely Damaged
+0       Sal	Salvage only
+
+
+```{r}
+levels(H_Orig$Functional)
+```
+
+So order should be 3, 2, 6, 5, 4, 1, 7
+```{r}
+H_Working$Functional<-c(3,2,6,5,4,1,7)[as.numeric(H_Orig$Functional)]
+
+table(H_Orig$Functional,useNA = 'ifany')
+table(H_Working$Functional,useNA = 'ifany')
+```
+
+#
+BsmtFinType1: BsmtFinType1: Rating of basement finished area
+BsmtFinType2: Rating of basement finished area (if multiple types)	
+	
+6       GLQ	Good Living Quarters
+5       ALQ	Average Living Quarters
+4       BLQ	Below Average Living Quarters
+3       Rec	Average Rec Room
+2       LwQ	Low Quality
+1       Unf	Unfinshed
+0       NA	No Basement
+
+
+```{r}
+levels(H_Orig$BsmtFinType2)
+levels(H_Orig$BsmtFinType1)
+```
+
+Order should be 5,4,6,2,3,1
+
+```{r}
+H_Working$BsmtFinType1<-c(5,4,6,2,3,1)[as.numeric(H_Orig$BsmtFinType1)]
+
+H_Working$BsmtFinType2<-c(5,4,6,2,3,1)[as.numeric(H_Orig$BsmtFinType2)]
+
+table(H_Orig$BsmtFinType1,useNA ='ifany')
+table(H_Working$BsmtFinType1,useNA ='ifany')
+
+table(H_Orig$BsmtFinType2,useNA ='ifany')
+table(H_Working$BsmtFinType2, useNA = 'ifany')
+
+
+```
+# Here, this NA for H_Working$BsmtFinType2 is a typo for 1 row. Looking at the data itself, 479Sf of Basement 2 exists.
+# For this row, I will impute the value to the most frequent item when the Basement 2 exist which is Rec from the table.
+
+ALQ  BLQ  GLQ  LwQ  Rec  Unf <NA> 
+  19   33   14   46   54 1256   38 
+
+This row had unique 479 square foot for BsmtFinSF2, so I will use this condition to impute that first. So that row will have 3(Rec) for its value. Rest will have value 0 for having no basement
+
+```{r}
+H_Working$BsmtFinType2[H_Working$BsmtFinSF2==479]<-3
+H_Working$BsmtFinType2[is.na(H_Working$BsmtFinType2)]<-0
+
+# Also fill in 37 NA for Type1
+H_Working$BsmtFinType1[is.na(H_Working$BsmtFinType1)]<-0
+
+table(H_Orig$BsmtFinType2,useNA ='ifany')
+table(H_Working$BsmtFinType2, useNA = 'ifany')
+
+table(H_Orig$BsmtFinType1,useNA ='ifany')
+table(H_Working$BsmtFinType1,useNA ='ifany')
+
+```
+
+Can see one increased from 54(Rec) to 55(3) and NA decreased from 38(NA) to 37(0) for BsmtFinType2, and BsmtFinType1 NA replaced by 0.
+
+
+# Fence: Fence quality	
+	
+4   GdPrv	Good Privacy
+3   MnPrv	Minimum Privacy
+2   GdWo	Good Wood
+1   MnWw	Minimum Wood/Wire
+0   NA	No Fence
+
+```{r}
+levels(H_Orig$Fence)
+```
+
+```{r}
+H_Working$Fence<-c(4,2,3,1)[as.numeric(H_Orig$Fence)]
+H_Working$Fence[is.na(H_Working$Fence)]<-0
+
+table(H_Orig$Fence,useNA='ifany')
+table(H_Working$Fence,useNA='ifany')
+
+```
+
+
+
+# BsmtExposure: Refers to walkout or garden level walls	
+	
+4       Gd	Good Exposure
+3       Av	Average Exposure (split levels or foyers typically score average or above)
+2       Mn	Mimimum Exposure
+1       No	No Exposure
+0       NA	No Basement
+
+
+```{r}
+levels(H_Working$BsmtExposure       )
+```
+Again, looking at data itself, I can see that one row is a mistake in putting in NA instead of No.  
+
+To fix this I'm going to use two conditions. All BsmtFinType1 Unf and BsmtExposure NA to 1 (No) then I will move rest to 0 (NA)
+
+
+```{r}
+H_Working$BsmtExposure<-c(3,4,2,1)[as.numeric(H_Orig$BsmtExposure)]
+H_Working$BsmtExposure[is.na(H_Working$BsmtExposure) & H_Working$BsmtFinType1=='Unf']<-1
+H_Working$BsmtExposure[is.na(H_Working$BsmtExposure)]<-0
+
+table(H_Orig$BsmtExposure,useNA='ifany')
+table(H_Working$BsmtExposure,useNA='ifany')
+```
+
+
+# PavedDrive: Paved driveway	
+	
+2       Y	Paved 
+1       P	Partial Pavement
+0       N	Dirt/Gravel
+
+```{r}
+levels(H_Orig$PavedDrive)
+```
+```{r}
+H_Working$PavedDrive<-c(0,1,2)[as.numeric(H_Orig$PavedDrive)]
+
+table(H_Orig$PavedDrive, useNA='ifany')
+table(H_Working$PavedDrive, useNA='ifany')
+```
+
+#LandSlope: Slope of property	
+	
+3      Gtl	Gentle slope
+2       Mod	Moderate Slope
+1       Sev	Severe Slope
+
+```{r}
+levels(H_Orig$LandSlope)
+```
+
+```{r}
+H_Working$LandSlope<-c(3,2,1)[as.factor(H_Orig$LandSlope)]
+table(H_Orig$LandSlope, useNA='ifany')
+table(H_Working$LandSlope, useNA = 'ifany')
+```
+
+# GarageFinish: Interior finish of the garage	
+	
+3       Fin	Finished
+2       RFn	Rough Finished
+1       Unf	Unfinished
+0       NA	No Garage
+
+# Will Impute 81 NA into 0 too
+```{r}
+H_Working$GarageFinish<-c(3,2,1)[as.numeric(H_Orig$GarageFinish)]
+H_Working$GarageFinish[is.na(H_Working$GarageFinish)]<-0
+table(H_Orig$GarageFinish,useNA='ifany')
+table(H_Working$GarageFinish,useNA = 'ifany')
+```
+
+
+# Alley: Type of alley access to property	
+	
+1      Grvl	Gravel
+2       Pave	Paved
+0       NA 	No alley access
+
+```{r}
+levels(H_Orig$Alley)
+```
+```{r}
+H_Working$Alley<-c(1,2)[as.numeric(H_Orig$Alley)]
+H_Working$Alley[is.na(H_Working$Alley)]<-0
+table(H_Orig$Alley,useNA='ifany')
+table(H_Working$Alley,useNA = 'ifany')
+```
+
+# Utilities: Type of utilities available	
+	
+4      AllPub	All public Utilities (E,G,W,& S)
+3     NoSewr	Electricity, Gas, and Water (Septic Tank)
+2     NoSeWa	Electricity and Gas Only
+1     ELO	Electricity only
+
+
+```{r}
+levels(H_Orig$Utilities)
+```
+
+```{r}
+H_Working$Utilities<-c(4,1)[as.numeric(H_Orig$Utilities)]
+table(H_Orig$Utilities,useNA = 'ifany')
+table(H_Working$Utilities,useNA ='ifany')
+```
+
+Two levels - didn't really need to be changed to ordinal since the rest didn't exist
+
+
+# BldgType: Type of dwelling	
+	
+  5    1Fam	Single-family Detached
+  4     2FmCon	Two-family Conversion; originally built as one-family dwelling
+  3     Duplx	Duplex
+  2     TwnhsE	Townhouse End Unit
+  1     TwnhsI	Townhouse Inside Unit
+```{r}
+levels(H_Orig$BldgType)
+```
+
+```{r}
+H_Working$BldgType<-c(5,4,3,1,2)[H_Orig$BldgType]
+table(H_Orig$BldgType, useNA = 'ifany')
+table(H_Working$BldgType,useNA = 'ifany')
+```
+Not sure if I should combine duplex and 2fmCon
+
+
+
+
+
+# Ordinals that had 'factor' status  all converted to numeric & NAs were imputed for them.
+
+# Check other N/As
+
+
+```{r}
+NAs<-colSums(is.na(H_Working))
+NAs[NAs>0]
+
+
+```
+
+
+# Below are N/As because they do not have Garage. Each has 81 missing values.
+
+GarageType ---> NoGarage
+GarageYrBlt
+
+
+# GarageType: Garage location	
+	
+       2Types	More than one type of garage
+       Attchd	Attached to home
+       Basment	Basement Garage
+       BuiltIn	Built-In (Garage part of house - typically has room above garage)
+       CarPort	Car Port
+       Detchd	Detached from home
+       NA	No Garage
+	
+Imptue NA to NoGarage
+
+
+```{r}
+
+# Garage Type NA change to NoGarage. Using different way to add another factor into the level.
+H_Working$GarageType<-as.character(H_Orig$GarageType)
+H_Working$GarageType[is.na(H_Working$GarageType)]<-"NoGarage"
+
+H_Working$GarageType<-as.factor(H_Working$GarageType)
+
+table(H_Orig$GarageType,useNA = 'ifany')
+table(H_Working$GarageType,useNA ='ifany')
+
+```
+
+
+# GarageYrBlt
+This is a ordinal value (year), so I have decided to give one less value than the oldest garage, since it should be worse than having any garage.
+
+
+```{r}
+hist(H_Orig$GarageYrBlt)
+sum(is.na(H_Orig$GarageYrBlt))
+min(H_Orig$GarageYrBlt, na.rm=T)
+
+```
+# will impute 1899 - one less
+
+
+```{r}
+H_Working$GarageYrBlt[is.na(H_Working$GarageYrBlt)]<-min(H_Orig$GarageYrBlt, na.rm=T)-1
+hist(H_Working$GarageYrBlt)
+```
+Now can see many below 1900.
+
+
+LotFrontage  MasVnrType  MasVnrArea  Electrical MiscFeature 
+        259           8           8           1        1406 
+        
+        
+
+#MiscFeature	1406 ->NoMiscFeature
+
+
+
+
+# In order to Impute - need a new categorial variable added, and in R, need to add new level, 
+# Otherwise error - levels(x)<-c(levels(x),"None")  #Add the extra level to your factor
+# x[is.na(x)] <- "None"  
+
+
+```{r}
+
+levels(H_Working$MiscFeature)<-c(levels(H_Working$MiscFeature),"NoMiscFeature")
+H_Working$MiscFeature[is.na(H_Working$MiscFeature)]<-"NoMiscFeature"
+#double check to compare
+
+table(H_Orig$MiscFeature,useNA="ifany")
+table(H_Working$MiscFeature,useNA="ifany")
+
+```
+
+# Left Over NAs
+LotFrontage  MasVnrType  MasVnrArea  Electrical 
+        259           8           8           1 
+
+
+
+# MasVnrType: Masonry veneer type	-> to None
+#	MasVnrArea: Masonry veneer area in square feet -> to 0	
+       BrkCmn	Brick Common
+       BrkFace	Brick Face
+       CBlock	Cinder Block
+       None	None
+       Stone	Stone
+	
+Looking at the data, NA seems to be a typo instead of none, and area should be 0.
+
+```{r}
+levels(H_Orig$MasVnrType)
+```
+
+```{r}
+H_Working$MasVnrType[is.na(H_Working$MasVnrType)]<-"None"
+table(H_Orig$MasVnrType,useNA='ifany')
+table(H_Working$MasVnrType,useNA='ifany')
+```
+
+
+```{r}
+H_Working$MasVnrArea[is.na(H_Working$MasVnrArea)]<-0
+table(H_Orig$MasVnrArea)
+table(H_Working$MasVnrArea)
+```
+
+
+
+# Lot
+
+
+# Electrical
+
+This probably is a typo since this is a newly built building and other facilities are there.It has central air, and gas, all utilities so it should have something decent.
+
+I haved decided to look at this for anything that were built after 2000 and impute the most common one from there
+
+       SBrkr	Standard Circuit Breakers & Romex
+       FuseA	Fuse Box over 60 AMP and all Romex wiring (Average)
+       FuseF	60 AMP Fuse Box and mostly Romex wiring (Fair)
+       FuseP	60 AMP Fuse Box and mostly knob & tube wiring (poor)
+       Mix	Mixed
+
+
+```{r}
+table(H_Orig$Electrical[H_Orig$YearBuilt>=2000])
+```
+After 2000, evertyhing was Sbrkr
+
+```{r}
+H_Working$Electrical[is.na(H_Working$Electrical)]<-'SBrkr'
+table(H_Orig$Electrical,useNA='ifany')
+table(H_Working$Electrical,useNA='ifany')
+
+```
+
+
+#Finally Impute Lot Frontage
+
+
+
+
+# Side work - checking relationship between lot area and lot frontage
+```{r}
+plot(housedata_num$LotFrontage,housedata_num$LotArea, xlim=c(0,200),ylim=c(0,60000))
+lm(housedata_num$LotFrontage~housedata_num$LotArea)
+
+```
+Feature selection
+
+```{r}
+library(MASS)
+
+
+housedata_clean<-data.frame(c(housedata_cat,housedata_num))
+
+housedata_clean2<-na.omit(housedata_clean)
+full1<-lm(housedata_num$SalePrice~housedata_num$MSSubClass,data=housedata_num)
+#full<-lm(housedata_clean2$SalePrice~., data=housedata_clean2)
+#null<-lm(housedata_clean$SalePrice~1, data=housedata_clean)
+#StepF<-StepAIC(null, scope=list(lower=null, upper=full), direction="foward", trace=TRUE)
+str(housedata_clean2)
+```
+
+Plot the numerical variables
+```{r}
+#install.packages("VIM")
+#library(VIM)
+#summary(housedatac)
+#housedata_imp<-kNN(housedata_cat,variable="LotFrontage", k=6)
+```
