@@ -2,9 +2,7 @@
 title: "Project_HousePrediction_Initial Data Exploration"
 author: "Hyunkyung Kim"
 date: "October 11, 2018"
-output:
-  html_document:
-    df_print: paged
+output: word_document
 ---
 
 ```{r, include = FALSE}
