@@ -122,7 +122,6 @@ colnames(housedata_cat)
 ```
 In step2, will go through ordinal variables and make some changes to this structure.
 
-
 ### Plot numerical - Histogram 
 ```{r,message=F}
 #sapply(housedata_num, hist,main=colnames(housedata_num), )
