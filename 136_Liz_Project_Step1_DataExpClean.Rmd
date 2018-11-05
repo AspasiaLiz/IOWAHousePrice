@@ -1,72 +1,77 @@
 ---
-title: "Project_HousePrediction_Data Exploration"
+title: "Project_HousePrediction_Initial Data Exploration"
 author: "Hyunkyung Kim"
 date: "October 11, 2018"
-output: word_document
+output:
+  html_document:
+    df_print: paged
 ---
 
-```{r}
+```{r, include = FALSE}
 #install.packages("caret")
 #install.packages("dplyr")
 library(caret)
 library(dplyr)
-
+library(psych)
+library(corrplot)
 library(leaps)
 ```
 
-## Import Data and Save a Copy##
+#### Import Data and Save a Copy
 housedata - original data
 housedatac - working copy of the data
 
 ```{r}
 housedata<-read.csv("C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\train.csv")
+
 housedatac<-housedata
 
 ```
 
-## Investigating the variables.
-## Checking # of N/A data 
+#### Investigating the variables.
+
 
 ```{r}
 str(housedata)
 
 ```
-## Checking for duplicates & uniques : Both 1460 rows - meaning No duplicate
-## Display features that has non zero N/As.
+#### Checking for duplicates & uniques : Both 1460 rows - meaning No duplicate
+#### Display features that has non zero N/As.
 
 ```{r}
 
-nrow(housedata)
-nrow(unique(housedata))
+nrow(housedata[,-1])
+nrow(unique(housedata[,-1]))
 
 NAs<-colSums(is.na(housedata))
 NAs[NAs>0]
 
 ```
-## Number of rows = # of unique rows : no duplicate data
-## Features that has N/As are displayed - Will work with that.
+Number of rows = # of unique rows : no duplicate data
+Features that has N/As are displayed - Will work with that in the next step.
 
 
 
-## Data Description ##
+### Data Description 
 Checking Min/Max/quartiles for numerical, and table for categorical variables.
 ```{r}
 summary(housedata)
 ```
-## Data Visualization & basic transformation##
-## Before this, going to do some basic data cleaning ##
+
+### Data Visualization & basic transformation##
+Before this, going to do some very basic data cleaning 
 
 
-## CLEANING DATA ##
+#### CLEANING DATA ##
 
-#1. Remove ID
+1. Remove ID
 ID is not really relative data here. It just identifies the rows.
 ```{r}
 housedatac<-select(housedatac, -c(Id))
 ```
 
 
-# 2. MSSubClass to factor.
+2.. MSSubClass to factor.
 MSSubclass is actually categorical - represented as numeric. Need to change to factor.
 ```{r}
 housedatac$MSSubClass<-as.factor(housedatac$MSSubClass)
@@ -74,26 +79,26 @@ housedatac$MSSubClass<-as.factor(housedatac$MSSubClass)
 
 MSSubClass: Identifies the type of dwelling involved in the sale.	
 	
-20	1-STORY 1946 & NEWER ALL STYLES
-30	1-STORY 1945 & OLDER
-40	1-STORY W/FINISHED ATTIC ALL AGES
-45	1-1/2 STORY - UNFINISHED ALL AGES
-50	1-1/2 STORY FINISHED ALL AGES
-60	2-STORY 1946 & NEWER
-70	2-STORY 1945 & OLDER
-75	2-1/2 STORY ALL AGES
-80	SPLIT OR MULTI-LEVEL
-85	SPLIT FOYER
-90	DUPLEX - ALL STYLES AND AGES
-120	1-STORY PUD (Planned Unit Development) - 1946 & NEWER
-150	1-1/2 STORY PUD - ALL AGES
-160	2-STORY PUD - 1946 & NEWER
-180	PUD - MULTILEVEL - INCL SPLIT LEV/FOYER
-190	2 FAMILY CONVERSION - ALL STYLES AND AGES
++ 20	1-STORY 1946 & NEWER ALL STYLES
++ 30	1-STORY 1945 & OLDER
++ 40	1-STORY W/FINISHED ATTIC ALL AGES
++ 45	1-1/2 STORY - UNFINISHED ALL AGES
++ 50	1-1/2 STORY FINISHED ALL AGES
++ 60	2-STORY 1946 & NEWER
++ 70	2-STORY 1945 & OLDER
++ 75	2-1/2 STORY ALL AGES
++ 80	SPLIT OR MULTI-LEVEL
++ 85	SPLIT FOYER
++ 90	DUPLEX - ALL STYLES AND AGES
++ 120	1-STORY PUD (Planned Unit Development) - 1946 & NEWER
++ 150	1-1/2 STORY PUD - ALL AGES
++ 160	2-STORY PUD - 1946 & NEWER
++ 180	PUD - MULTILEVEL - INCL SPLIT LEV/FOYER
++ 190	2 FAMILY CONVERSION - ALL STYLES AND AGES
 
-# Dividing into numerical and categorical columns to visualize some data.
+3. Dividing into numerical and categorical columns to visualize some data.
 
-# Numerical
+* Numeric
 
 ```{r}
 
@@ -103,12 +108,9 @@ housedata_num<-housedatac[ , nums]
 
 colnames(housedata_num)
 
-
-
-
 ```
 
-# Categorical
+* Categorical
 ```{r}
 # Categorical into cat. 
 
@@ -116,100 +118,187 @@ cats <-unlist(lapply(housedatac,is.factor))
 housedata_cat<-housedatac[,cats]
 
 
-
 colnames(housedata_cat)
 ```
+In step2, will go through ordinal variables and make some changes to this structure.
 
 
-
-
-# Initial Plots for Numerical Data
-
-
-
-
-## Plot numerical - Histogram ##
-```{r, echo=FALSE}
+### Plot numerical - Histogram 
+```{r,message=F}
 #sapply(housedata_num, hist,main=colnames(housedata_num), )
 par(mfrow=c(2,3))
 mapply(hist,as.data.frame(housedata_num),main=colnames(housedata_num),xlab='' ,breaks=20, col="blue")
 
 
+
+
+```
+Many of the distributions are skewed - including salePrice Log transformation would be beneficial. 
+
+
+### Skewness Test
+Originally used Shapiro wilk test, but this only works well with n<50 and thus all my distributions showed as not-normal.
+Skewness - between -0.5 to 0.5 normal, absolute value between 0.5 and 1 moderately skewed. Abs value above 1 is highly skewed.
+Kurtosis - Kurtosis tells you the height and sharpness of the central peak, relative to that of a standard bell curve.
+```{r}
+#skewness.test(housedata_num$SalePrice)
+Check<-describe(housedata_num)[,c(11,12)]
+Check
+
+
+
+```
+Below items all high skewness and may need transformation.
+
+
++ LotFrontage    2.16    17.34
++ LotArea       12.18   202.26
++ MasVnrArea     2.66    10.03
++ BsmtFinSF1     1.68    11.06
++ BsmtFinSF2     4.25    20.01
++ TotalBsmtSF    1.52    13.18
++ X1stFlrSF      1.37     5.71
++ LowQualFinSF   8.99    82.83
++ GrLivArea      1.36     4.86
++ BsmtHalfBath   4.09    16.31
++ KitchenAbvGr   4.48    21.42
++ OpenPorchSF    2.36     8.44
++ EnclosedPorch  3.08    10.37
++ X3SsnPorch    10.28   123.06
++ ScreenPorch    4.11    18.34
++ PoolArea      14.80   222.19
++ MiscVal       24.43   697.64
++ SalePrice      1.88     6.50
+
+#### Subset non-normal variables.
+```{r}
+H_SkewedVar<-select(housedata_num,c(
+  
+
+LotArea,
+MasVnrArea,
+BsmtFinSF1,
+BsmtFinSF2,
+TotalBsmtSF,
+X1stFlrSF,
+LowQualFinSF,
+GrLivArea,
+BsmtHalfBath,
+KitchenAbvGr,
+OpenPorchSF,
+EnclosedPorch,
+X3SsnPorch,
+ScreenPorch,
+PoolArea,
+MiscVal,
+SalePrice))
+
+
 ```
 
-## Plot numerical 2 - Boxplot ## 
+#### Apply Log base 10 and check skewness.
+(log10(x+1) because there are some x=0 values)
 ```{r}
-par(mfrow=c(2,5))
+describe(H_SkewedVar)[,c(11,12)]
+describe(log10(H_SkewedVar+1),)[,c(11,12)]
+```
+The Log transformation significantly improved skewness for below.
+
+               skew kurtosis
++ LotArea       -0.14     4.68
++ MasVnrArea     0.49    -1.63
++ BsmtFinSF1    -0.62    -1.48
++ BsmtFinSF2     2.52     4.52
++ X1stFlrSF      0.08     0.14
++ GrLivArea     -0.01     0.27
++ OpenPorchSF   -0.02    -1.78
++ SalePrice      0.12     0.80
+
+
+Below didn't help much with log transformation
+
++ LowQualFinSF   7.44
++ BsmtHalfBath   3.92    13.78
++ KitchenAbvGr   4.48    21.42
++ X3SsnPorch     7.72    58.13
++ ScreenPorch    3.14     7.98
++ PoolArea      14.33   203.69
++ MiscVal        5.16    25.31
+
+#### Plot Histogram to see if this matches with the skewness changes.
+```{r}
+par(mfrow=c(1,2))
+for (i in 1:17){
+hist(H_SkewedVar[,i],main=colnames(H_SkewedVar[i]),xlab='' ,breaks=20, col="green")
+#  lines(density(H_SkewedVar[,i], na.rm=T),col="green")
+hist(log10(H_SkewedVar[,i]+1),main=paste("Log of ",colnames(H_SkewedVar[i])),xlab='' ,breaks=20, col="yellow")
+# lines(density(log10(H_SkewedVar[,i]), na.rm=T),col="yellow")
+}
+
+
+```
+
+Looks like it matches with the skewness values.
+
+               skew kurtosis
+LotArea       -0.14     4.68
+MasVnrArea     0.49    -1.63
+BsmtFinSF1    -0.62    -1.48
+BsmtFinSF2     2.52     4.52
+X1stFlrSF      0.08     0.14
+GrLivArea     -0.01     0.27
+OpenPorchSF   -0.02    -1.78
+SalePrice      0.12     0.80
+
+### Plot numerical 2 - Boxplot to check outliers## 
+
+
+An outlier is defined as above 1.5 interqurtile range above the upper quartile(Q3) and below 1.5 of lower quartile(Q1).
+Looking at the boxplot, there are too many outliers. Many are because the distribution is skewed, and some because majority of the distribution are packed into very small range (variance is very small). 
+```{r}
+par(mfrow=c(1,5))
 
 
 # The mapply() function stands for 'multivariate' apply. Its purpose is to be able to vectorize arguments to a function that is not usually accepting vectors as arguments. In short, mapply() applies a Function to Multiple List or multiple Vector Arguments.
 
-mapply(boxplot,data.frame(housedata_num),main=colnames(housedata_num))
-
-
-
-mapply(boxplot.stats,data.frame(housedata_num))
+mapply(boxplot,data.frame(housedata_num),main=colnames(housedata_num) )
 
 ```
 
+### Print Outliers 
 ```{r}
-boxplot.stats(housedata_num[,1])
+#boxplot.stats(housedata_num[,1])
 for (i in 1:36)
 {
-boxplot.stats(housedata_num[,i])
-}
+(a<-boxplot.stats(housedata_num[,i]))
+  
+print(colnames(housedata_num)[i])
+print(a$out)}
 
 ```
+Looking through these values, most of them looks to be biproduct of skewed distribution or extremely small variance. 
+Will look this into a little more after cleaning up the data using cook's distance.
 
 
 
-## Plot Categorical - Bar Plot ##
-
+### Check to see relationship with response variable - house price VS ind. variables.
 ```{r}
-# par(mfrow=c(1,2))
-# Barplots needs to be in table first in order to plot.
-for (i in 1:44)
+par(mfrow=c(2,3))
+for (i in 2:79)
 (
-
-barplot(table(housedata_cat[,i],useNA="ifany"), col="red", las=2, main=colnames(housedata_cat[i]))
+plot(housedata[,i],housedata$SalePrice, las=2,  main=colnames(housedata[i]), xlab='', col='grey')
 )
 ```
 
+Can see definate relationships here. House Prices increase with Lot Frontage, Lot Area, Overall Quality, Year Built, Year Remodel, BsmtFinSF1, TotalBsmtSF, X1stFlrSF, X2ndFlrSF, # of FullBath, TotRmsAbvGrd,KitchenQual, GarageYrBlt, GarageCars, GarageArea, WoodDeckSF, etc. 
 
+### Checking Correlations between Independent Variables 
 
-
-## Correlation between numerical variables - Ellipse form
+Using spearman because many of our variables are not normal.
 
 ```{r}
-library(corrplot)
-corrplot(cor(housedata_num,use="complete.obs"), method="ellipse")
-cor(housedata_num,use="complete.obs")
+cor(housedata_num,use="complete.obs", method='spearman')
+corrplot(cor(housedata_num,use="complete.obs", method='spearman'), method="ellipse", cex.axis=0.8)
+corrplot(cor(housedata_num,use="complete.obs", method='spearman'), method="number", cex.axis=0.8)
 ```
-
-##Correlation between numerical variables - Numerics.
-```{r}
-
-corrplot(cor(housedata_num), method="number")
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
