@@ -568,10 +568,6 @@ table(H_Working$MasVnrArea)
 ```
 
 
-
-# Lot
-
-
 # Electrical
 
 This probably is a typo since this is a newly built building and other facilities are there.It has central air, and gas, all utilities so it should have something decent.
@@ -600,35 +596,55 @@ table(H_Working$Electrical,useNA='ifany')
 
 #Finally Impute Lot Frontage
 
-
-
-
-# Side work - checking relationship between lot area and lot frontage
 ```{r}
+plot(H_Working$Neighborhood, H_Working$SalePrice,las=2,lex.order=y)
+boxplot(H_Working$SalePrice~H_Working$Neighborhood, las=2)
+boxplot(H_Working$SalePrice~H_Working$GarageCars*H_Working$Neighborhood, col=c(1,2,3,4),las=2)
+```
+
+```{r}
+full<-lm(H_Working$SalePrice~., data=H_Working)
+summary(full)
+```
+
+#### SCRATCH FROM HERE
+
+```{r}
+par(mfrow=c(2,4))
+for (i in 1:79)
+(
+plot(H_Working[,i],H_Working$SalePrice, las=2,  xlab=colnames(H_Working[i]))
+)
+```
+
+
+Side work - checking relationship between lot area and lot frontage
+
 plot(housedata_num$LotFrontage,housedata_num$LotArea, xlim=c(0,200),ylim=c(0,60000))
 lm(housedata_num$LotFrontage~housedata_num$LotArea)
 
 ```
 Feature selection
 
-```{r}
+
 library(MASS)
 
 
-housedata_clean<-data.frame(c(housedata_cat,housedata_num))
+
 
 housedata_clean2<-na.omit(housedata_clean)
 full1<-lm(housedata_num$SalePrice~housedata_num$MSSubClass,data=housedata_num)
-#full<-lm(housedata_clean2$SalePrice~., data=housedata_clean2)
+full<-lm(housedata_clean2$SalePrice~., data=housedata_clean2)
 #null<-lm(housedata_clean$SalePrice~1, data=housedata_clean)
 #StepF<-StepAIC(null, scope=list(lower=null, upper=full), direction="foward", trace=TRUE)
 str(housedata_clean2)
-```
+
+
+
 
 Plot the numerical variables
-```{r}
+
 #install.packages("VIM")
 #library(VIM)
 #summary(housedatac)
 #housedata_imp<-kNN(housedata_cat,variable="LotFrontage", k=6)
-```
