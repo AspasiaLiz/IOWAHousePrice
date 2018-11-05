@@ -1,8 +1,10 @@
 ---
-title: "Untitled"
+title: "Liz 136 Project Step 2 Data Clean up - NA"
 author: "Hyunkyung Kim"
 date: "November 3, 2018"
-output: html_document
+output:
+  word_document: default
+  html_document: default
 ---
 
 ```{r, echo=FALSE}
