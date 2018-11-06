@@ -1,13 +1,32 @@
 # IOWAHousePrice
 This is data from Kaggle Competition :  https://www.kaggle.com/c/house-prices-advanced-regression-techniques/data
 
-Step 1 : Basically looking at the data. Data Description/Visualization/Checking for NAs. Initial Cleaning of removing ID (meaningless) and changing a numerical value that represents categorical value into categorical value for correctness. More data cleaning in step 2.
-
-
-
+Step 1 : Basically looking at the data. Data Description/Visualization/Checking for NAs. Initial Cleaning of removing ID (meaningless) and changing a numerical value that represents categorical value into categorical value for correctness.  Rough looking at outliers. Looking at some visualizations. Histogram/Boxplot for numeric variables and barplot for categorical variables. Plot against Saleprice for all too see correlations. Correlation Matrix. Look at skewness (non-normality) to see what should be log transformed if any.
 
 
 Step 2 : Data Cleaning - 
+Mostly working on imputation of NAs.
+Also modifying ordinal variables into numeric variables.
+Correcting incorrect values (Year 2207 for example, and NAs where it should have been 0 and other categories.)
+
+
+Step 3 : Feature Selection
+Look at foward selection, backwards elimination and use Boruta package (random forest tree - feature selection) to select features.
+
+Step 3.2 : Log Transformation 
+
+Step 4 : Regression
+
+
+
+
+
+
+
+
+
+
+----------------
 Below changed from factor to numerical variables. 
 Col Name	type	N/A(%)	R - Output
 PoolQC	F	100%	Factor w/ 3 levels "Ex","Fa","Gd": NA NA NA NA NA NA NA NA NA NA ...
