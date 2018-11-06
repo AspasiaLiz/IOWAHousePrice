@@ -1,0 +1,111 @@
+---
+title: "Step 3 - Feature Selection"
+author: "Hyunkyung Kim"
+date: "November 1, 2018"
+
+
+
+```{r}
+#install.packages("glmnet")
+#install.packages("mlbench")
+#install.packages("Boruta")
+library(MASS) # stepwise regression
+library(caret)
+library(tidyverse)
+library(psych)
+library(glmnet)
+library(mlbench)
+library(Boruta)
+library(leaps) # all subsets regression
+library(randomForest)
+```
+
+### Import Clean Data
+
+```{r}
+
+H_Clean<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\H_clean.csv")
+
+Train<-H_Clean[!is.na(H_Clean$SalePrice),-1]
+Test<-H_Clean[is.na(H_Clean$SalePrice),-1]
+```
+
+
+### Check Outlier for Linear Regression - Cook's Distance.
+```{r}
+# Linear Fit Model
+lmfit<-lm(SalePrice~.,data=Train)
+summary(lmfit)
+
+plot(lmfit)
+plot(lmfit,which=c(4))
+#anova(lmfit)
+```
+### Another linear model fit - using Log10 of Saleprice because Sale is skewed. 
+```{r}
+lmfit_log<-lm(log10(SalePrice)~.,data=Train)
+summary(lmfit)
+
+plot(lmfit_log)
+plot(lmfit_log,which=c(4))
+```
+
+524 is a really big house, with great features but has extremely low sale price. 
+826 is the opposite. It was sold way over than others when looking at its features.
+
+dishould probably try out removing the 524, 826, and possibly 1001, 1183 to see if they make a significant difference in model.
+
+#### This outlier removal option is a possible option to enhance the performance in the future.
+
+
+### 1.  Forward Selection Results
+
+```{r}
+
+#full - assigned as lmfit earlier
+null <-  lm(SalePrice~1,data=Train)
+stepF <- stepAIC(null, scope=list(lower=null, upper=lmfit), direction= "forward", trace=FALSE) #trace=TRUE
+StepF_log<- stepAIC(null, scope=list(lower=null, upper=lmfit_log), direction= "forward", trace=FALSE) #trace=TRUE            
+```
+
+#### 2.  Linear Model looks like below.
+```{r}
+stepF
+
+```
+
+### Backward Elimination Results
+```{r}
+StepB <- stepAIC(lmfit, direction= "backward", trace=FALSE)
+summary(StepB)
+```
+
+### 3. Boruta Feature Selection 
+Based on Random forest. Selects attributes better than shadow.
+
+```{r}
+set.seed(99)
+
+FS_Boruta<-Boruta(SalePrice~.,data=Train, maxRuns=200)
+                
+```
+
+
+```{r}
+print(FS_Boruta)
+
+plot(FS_Boruta,las=2, cex.axis=0.8) # Shows the confirmed feature green, tentative yellow and rejected red.
+
+getConfirmedFormula(FS_Boruta)
+```
+Graph shows important features. Ground Level Area scored the highest then the overall quality.
+
+```{r}
+borcheck<-TentativeRoughFix(FS_Boruta)
+print(borcheck)
+getSelectedAttributes(borcheck, withTentative = F)
+
+
+```
+
+Three options from three different selections.

@@ -1,3 +1,0 @@
-"0","#sapply(housedata_num, hist,main=colnames(housedata_num), )"
-"0","par(mfrow=c(2,3))"
-"0","mapply(hist,as.data.frame(housedata_num),main=colnames(housedata_num),xlab='' ,breaks=20, col=""blue"")"

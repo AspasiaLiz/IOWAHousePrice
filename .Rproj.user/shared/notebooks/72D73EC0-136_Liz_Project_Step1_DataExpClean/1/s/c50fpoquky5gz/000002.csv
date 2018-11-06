@@ -2,4 +2,6 @@
 "0","#install.packages(""dplyr"")"
 "0","library(caret)"
 "0","library(dplyr)"
+"0","library(psych)"
+"0","library(corrplot)"
 "0","library(leaps)"

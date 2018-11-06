@@ -1,0 +1,147 @@
+---
+title: "136_Liz_Project_Step3.2_Feature Engineering"
+author: "Hyunkyung Kim"
+date: "November 6, 2018"
+output: html_document
+---
+
+```{r}
+#install.packages("glmnet")
+#install.packages("mlbench")
+#install.packages("Boruta")
+library(caret)
+library(tidyverse)
+library(psych)
+library(glmnet)
+library(mlbench)
+library(Boruta)
+library(MASS) # stepwise regression
+library(leaps) # all subsets regression
+library(randomForest)
+```
+
+### Import Clean Data
+
+```{r}
+
+H_Clean<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\H_clean.csv")
+
+Train<-H_Clean[!is.na(H_Clean$SalePrice),]
+Test<-H_Clean[is.na(H_Clean$SalePrice),]
+```
+
+
+## Log Transformation due to Skewness
+As Discussed in Step1, we have a few variables including response variable that thas high skewness.
+
+```{r}
+H_num<-H_Clean[,sapply(H_Clean[,-1],is.numeric)] #Numerical
+H_cat<-H_Clean[,sapply(H_Clean[,-1],is.factor)] # Categorical
+Check<-describe(H_num)[,c(11,12)]
+Check
+
+```
+Below items all high skewness and may need transformation.
+- Removed ordinal items.
+
++                skew kurtosis
+MSSubClass      1.37     1.45
+LotFrontage     1.33     9.12
+LotArea        12.82   264.31
+MasVnrArea      2.61     9.31
+ExterCond       1.32     6.27
+BsmtUnfSF       0.92     0.40
+TotalBsmtSF     1.16     9.10
+X1stFlrSF       1.47     6.94
+X2ndFlrSF       0.86    -0.43
+LowQualFinSF   12.08   174.51
+GrLivArea       1.27     4.11
+BsmtFullBath    0.62    -0.74
+BsmtHalfBath    3.93    14.82
+FullBath        0.17    -0.54
+HalfBath        0.69    -1.04
+BedroomAbvGr    0.33     1.93
+KitchenAbvGr    4.30    19.73
+KitchenQual     0.39    -0.04
+TotRmsAbvGrd    0.76     1.16
+Functional     -4.96    26.95
+Fireplaces      0.73     0.07
+FireplaceQu     0.17    -1.76
+GarageYrBlt    -0.69    -0.27
+GarageCars     -0.22     0.23
+GarageArea      0.24     0.93
+PavedDrive     -2.98     7.10
+WoodDeckSF      1.84     6.72
+OpenPorchSF     2.53    10.91
+EnclosedPorch   4.00    28.31
+X3SsnPorch     11.37   149.05
+ScreenPorch     3.94    17.73
+PoolArea       16.89   297.91
+PoolQC         15.86   255.66
+MiscVal        21.94   562.72
+MoSold          0.20    -0.46
+YrSold          0.13    -1.16
+SalePrice       1.88     6.50
+
+#### Subset non-normal variables.
+```{r}
+H_SkewedVar<-select(Train,c(
+  
+LotFrontage,
+LotArea,
+MasVnrArea,
+BsmtFinSF1,
+BsmtFinSF2,
+TotalBsmtSF,
+X1stFlrSF,
+LowQualFinSF,
+GrLivArea,
+BsmtHalfBath,
+KitchenAbvGr,
+OpenPorchSF,
+EnclosedPorch,
+X3SsnPorch,
+ScreenPorch,
+PoolArea,
+MiscVal,
+SalePrice))
+
+
+```
+
+#### Apply Log base 10 and check skewness.
+(log10(x+1) because there are some x=0 values)
+```{r}
+describe(H_SkewedVar)[,c(11,12)]
+describe(log10(H_SkewedVar+1),)[,c(11,12)]
+```
+The Log transformation significantly improved skewness for below.
+
+               skew kurtosis
++ LotFrontage   -0.73     2.29
++ LotArea       -0.14     4.68
++ MasVnrArea     0.49    -1.63
++ BsmtFinSF1    -0.62    -1.48
++ BsmtFinSF2     2.52     4.52
++ X1stFlrSF      0.08     0.14
++ GrLivArea     -0.01     0.27
++ OpenPorchSF   -0.02    -1.78
++ SalePrice      0.12     0.80
+
+
+Below didn't help much with log transformation
+
++ LowQualFinSF   7.44
++ BsmtHalfBath   3.92    13.78
++ KitchenAbvGr   4.48    21.42
++ X3SsnPorch     7.72    58.13
++ ScreenPorch    3.14     7.98
++ PoolArea      14.33   203.69
++ MiscVal        5.16    25.31
+
+
+```{r}
+
+
+
+```
