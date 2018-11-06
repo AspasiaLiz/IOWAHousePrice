@@ -171,7 +171,7 @@ Below items all high skewness and may need transformation.
 ```{r}
 H_SkewedVar<-select(housedata_num,c(
   
-
+LotFrontage,
 LotArea,
 MasVnrArea,
 BsmtFinSF1,
@@ -202,6 +202,7 @@ describe(log10(H_SkewedVar+1),)[,c(11,12)]
 The Log transformation significantly improved skewness for below.
 
                skew kurtosis
++ LotFrontage   -0.73     2.29
 + LotArea       -0.14     4.68
 + MasVnrArea     0.49    -1.63
 + BsmtFinSF1    -0.62    -1.48
@@ -225,7 +226,7 @@ Below didn't help much with log transformation
 #### Plot Histogram to see if this matches with the skewness changes.
 ```{r}
 par(mfrow=c(1,2))
-for (i in 1:17){
+for (i in 1:18){
 hist(H_SkewedVar[,i],main=colnames(H_SkewedVar[i]),xlab='' ,breaks=20, col="green")
 #  lines(density(H_SkewedVar[,i], na.rm=T),col="green")
 hist(log10(H_SkewedVar[,i]+1),main=paste("Log of ",colnames(H_SkewedVar[i])),xlab='' ,breaks=20, col="yellow")
