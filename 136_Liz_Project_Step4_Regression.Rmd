@@ -1,0 +1,424 @@
+---
+title: "136_Liz_Project_Step4_Regressions"
+author: "Hyunkyung Kim"
+
+output:
+  word_document: default
+  html_document: default
+---
+
+
+```{r}
+#install.packages("glmnet")
+#install.packages("mlbench")
+#install.packages("Boruta")
+library(caret)
+library(tidyverse)
+library(psych)
+library(glmnet)
+library(mlbench)
+library(Boruta)
+library(MASS) # stepwise regression
+library(leaps) # all subsets regression
+library(randomForest)
+library(MLmetrics)
+library(e1071)
+```
+
+### Import Cleaned Data
+
+```{r}
+
+H_Clean<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\H_clean.csv")
+
+Train<-H_Clean[!is.na(H_Clean$SalePrice),-1] #Remove ID
+Test<-H_Clean[is.na(H_Clean$SalePrice),-1] 
+```
+
+### For cross validataion.
+```{r}
+set.seed(999)
+Mycontrols<-trainControl(method='repeatedcv',number=10, repeats=5,verboseIter = F)
+```
+
+
+#### Forward Selection results- Option 1.
+
+Model 1: SalePrice ~ OverallQual + GrLivArea + Neighborhood + BsmtFinSF1 + 
+    RoofMatl + MSSubClass + BsmtExposure + KitchenQual + Condition2 + 
+    SaleCondition + LotArea + YearBuilt + OverallCond + MasVnrArea + 
+    PoolQC + BedroomAbvGr + GarageCars + MasVnrType + TotalBsmtSF + 
+    BldgType + Functional + ExterQual + BsmtCond + Condition1 + 
+    Exterior1st + MoSold + GarageCond + ScreenPorch + LandContour + 
+    LowQualFinSF + LotConfig + LotFrontage + TotRmsAbvGrd + KitchenAbvGr + 
+    WoodDeckSF + Street + GarageArea + LotShape + BsmtQual + 
+    Fireplaces + FireplaceQu + PoolArea + RoofStyle + BsmtFinSF2 + 
+    Utilities + ExterCond
+
+c(OverallQual , GrLivArea , Neighborhood , BsmtFinSF1 , 
+    RoofMatl , MSSubClass , BsmtExposure , KitchenQual , Condition2 , 
+    SaleCondition , LotArea , YearBuilt , OverallCond , MasVnrArea , 
+    PoolQC , BedroomAbvGr , GarageCars , MasVnrType , TotalBsmtSF , 
+    BldgType , Functional , ExterQual , BsmtCond , Condition1 , 
+    Exterior1st , MoSold , GarageCond , ScreenPorch , LandContour , 
+    LowQualFinSF , LotConfig , LotFrontage , TotRmsAbvGrd , KitchenAbvGr , 
+    WoodDeckSF , Street , GarageArea , LotShape , BsmtQual , 
+    Fireplaces , FireplaceQu , PoolArea , RoofStyle , BsmtFinSF2 , 
+    Utilities , ExterCond)
+
+
+### Backwards Elimination results - Option 2.
+
+Model 2: SalePrice ~ LotFrontage + LotArea + Street + LotShape + LandContour + 
+    Utilities + LotConfig + Neighborhood + Condition1 + Condition2 + 
+    BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + 
+    RoofMatl + Exterior1st + MasVnrType + MasVnrArea + ExterQual + 
+    ExterCond + Foundation + BsmtQual + BsmtCond + BsmtExposure + 
+    BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + 
+    HalfBath + BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + 
+    Functional + Fireplaces + FireplaceQu + GarageType + GarageCars + 
+    GarageArea + WoodDeckSF + X3SsnPorch + ScreenPorch + PoolQC + 
+    Fence + MiscFeature + MoSold + SaleCondition    
+    
+c(LotFrontage , LotArea , Street , LotShape , LandContour , 
+    Utilities , LotConfig , Neighborhood , Condition1 , Condition2 , 
+    BldgType , HouseStyle , OverallQual , OverallCond , YearBuilt , 
+    RoofMatl , Exterior1st , MasVnrType , MasVnrArea , ExterQual , 
+    ExterCond , Foundation , BsmtQual , BsmtCond , BsmtExposure , 
+    BsmtFinSF1 , BsmtFinSF2 , BsmtUnfSF , X1stFlrSF , X2ndFlrSF , 
+    HalfBath , BedroomAbvGr , KitchenAbvGr , KitchenQual , TotRmsAbvGrd , 
+    Functional , Fireplaces , FireplaceQu , GarageType , GarageCars , 
+    GarageArea , WoodDeckSF , X3SsnPorch , ScreenPorch , PoolQC , 
+    Fence , MiscFeature , MoSold , SaleCondition)
+
+
+
+#### Selected Feature from Boruta - Random forest selection - Option 3
+
+MSSubClass+MSZoning+LotFrontage+LotArea+Alley+LotShape+LandContour+LandSlope+Neighborhood+
+BldgType+HouseStyle+OverallQual+OverallCond+YearBuilt+YearRemodAdd+RoofStyle+Exterior1st+Exterior2nd+
+MasVnrType+MasVnrArea+ExterQual+Foundation+BsmtQual+BsmtCond+BsmtExposure+BsmtFinType1+BsmtFinSF1+
+BsmtFinType2+BsmtUnfSF+TotalBsmtSF+HeatingQC+CentralAir+X1stFlrSF+X2ndFlrSF+GrLivArea+BsmtFullBath+
+FullBath+HalfBath+BedroomAbvGr+KitchenAbvGr+KitchenQual+TotRmsAbvGrd+Fireplaces+FireplaceQu+GarageType+
+GarageYrBlt+GarageFinish+GarageCars+GarageArea+GarageQual+GarageCond+PavedDrive+WoodDeckSF+OpenPorchSF
+
+c(MSSubClass,MSZoning,LotFrontage,LotArea,Alley,LotShape,LandContour,LandSlope,Neighborhood,
+BldgType,HouseStyle,OverallQual,OverallCond,YearBuilt,YearRemodAdd,RoofStyle,Exterior1st,Exterior2nd,
+MasVnrType,MasVnrArea,ExterQual,Foundation,BsmtQual,BsmtCond,BsmtExposure,BsmtFinType1,BsmtFinSF1,
+BsmtFinType2,BsmtUnfSF,TotalBsmtSF,HeatingQC,CentralAir,X1stFlrSF,X2ndFlrSF,GrLivArea,BsmtFullBath,
+FullBath,HalfBath,BedroomAbvGr,KitchenAbvGr,KitchenQual,TotRmsAbvGrd,Fireplaces,FireplaceQu,GarageType,
+GarageYrBlt,GarageFinish,GarageCars,GarageArea,GarageQual,GarageCond,PavedDrive,WoodDeckSF,OpenPorchSF)
+
+
+```{r}
+#MyIndex<-sample(2,nrow(Train),replace=T,prob=c(0.7,0.3))
+```
+#### Linear Regression
+
+```{r}
+
+#All
+myLm1<-lm(SalePrice~.,data=Train) # All
+
+myLm2<-lm(SalePrice ~ OverallQual + GrLivArea + Neighborhood + BsmtFinSF1 + 
+    RoofMatl + MSSubClass + BsmtExposure + KitchenQual + Condition2 + 
+    SaleCondition + LotArea + YearBuilt + OverallCond + MasVnrArea + 
+    PoolQC + BedroomAbvGr + GarageCars + MasVnrType + TotalBsmtSF + 
+    BldgType + Functional + ExterQual + BsmtCond + Condition1 + 
+    Exterior1st + MoSold + GarageCond + ScreenPorch + LandContour + 
+    LowQualFinSF + LotConfig + LotFrontage + TotRmsAbvGrd + KitchenAbvGr + 
+    WoodDeckSF + Street + GarageArea + LotShape + BsmtQual + 
+    Fireplaces + FireplaceQu + PoolArea + RoofStyle + BsmtFinSF2 + 
+    Utilities + ExterCond, data = Train)
+myLm3<-lm(SalePrice ~ LotFrontage + LotArea + Street + LotShape + LandContour + 
+    Utilities + LotConfig + Neighborhood + Condition1 + Condition2 + 
+    BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + 
+    RoofMatl + Exterior1st + MasVnrType + MasVnrArea + ExterQual + 
+    ExterCond + Foundation + BsmtQual + BsmtCond + BsmtExposure + 
+    BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + 
+    HalfBath + BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + 
+    Functional + Fireplaces + FireplaceQu + GarageType + GarageCars + 
+    GarageArea + WoodDeckSF + X3SsnPorch + ScreenPorch + PoolQC + 
+    Fence + MiscFeature + MoSold + SaleCondition    , data = Train)
+myLm4<-lm(SalePrice ~ MSSubClass+MSZoning+LotFrontage+LotArea+Alley+LotShape+LandContour+LandSlope+Neighborhood+
+BldgType+HouseStyle+OverallQual+OverallCond+YearBuilt+YearRemodAdd+RoofStyle+Exterior1st+Exterior2nd+
+MasVnrType+MasVnrArea+ExterQual+Foundation+BsmtQual+BsmtCond+BsmtExposure+BsmtFinType1+BsmtFinSF1+
+BsmtFinType2+BsmtUnfSF+TotalBsmtSF+HeatingQC+CentralAir+X1stFlrSF+X2ndFlrSF+GrLivArea+BsmtFullBath+
+FullBath+HalfBath+BedroomAbvGr+KitchenAbvGr+KitchenQual+TotRmsAbvGrd+Fireplaces+FireplaceQu+GarageType+
+GarageYrBlt+GarageFinish+GarageCars+GarageArea+GarageQual+GarageCond+PavedDrive+WoodDeckSF+OpenPorchSF
+,data=Train)
+
+
+
+summary(myLm1)
+summary(myLm2)
+summary(myLm3)
+summary(myLm4)
+
+
+```
+
+
+
+```{r}
+par(mfrow=c(2,2))
+plot(myLm1)
+plot(myLm2)
+plot(myLm3)
+plot(myLm4)
+
+plot(myLm1,which=c(4))
+plot(myLm2,which=c(4))
+plot(myLm3,which=c(4))
+plot(myLm4,which=c(4))
+
+```
+Where all linear feature selection shows 524, 826 1183 as outlier, random forest selection chooses 1299 more of a problem than 524 or 1183.
+
+##### Prediction using all 4 linear models
+```{r}
+pd1<-predict(myLm1,interval='prediction',newdata=Test)
+pd2<-predict(myLm2,interval='prediction',newdata=Test)
+pd3<-predict(myLm3,interval='prediction',newdata=Test)
+pd4<-predict(myLm4,interval='prediction',newdata=Test)
+
+```
+##### Prediction VS Actual plot 
+##### RMSLE / RMSE calculated for test set.
+```{r}
+act<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\AMES_test.csv")
+actual<-act[1461:2919,2]
+par(mfrow=c(2,2))
+plot(actual,pd1[,1],pch=3)
+plot(actual,pd2[,1],pch=3, col='blue')
+plot(actual,pd3[,1],pch=3, col='red')
+plot(actual,pd4[,1],pch=3, col='green')
+
+RMSLE(pd1[,1],actual)
+RMSLE(pd2[,1],actual)
+RMSLE(pd3[,1],actual)
+RMSLE(pd4[,1],actual)
+
+
+RMSE(pd1[,1],actual)
+RMSE(pd2[,1],actual)
+RMSE(pd3[,1],actual)
+RMSE(pd4[,1],actual)
+
+
+
+```
+#### Random Forest 
+RF1<-RandomForest()
+
+```{r}
+RF1<-randomForest(SalePrice~.,data=Train)
+
+RF2<-randomForest(SalePrice ~ OverallQual + GrLivArea + Neighborhood + BsmtFinSF1 + 
+    RoofMatl + MSSubClass + BsmtExposure + KitchenQual + Condition2 + 
+    SaleCondition + LotArea + YearBuilt + OverallCond + MasVnrArea + 
+    PoolQC + BedroomAbvGr + GarageCars + MasVnrType + TotalBsmtSF + 
+    BldgType + Functional + ExterQual + BsmtCond + Condition1 + 
+    Exterior1st + MoSold + GarageCond + ScreenPorch + LandContour + 
+    LowQualFinSF + LotConfig + LotFrontage + TotRmsAbvGrd + KitchenAbvGr + 
+    WoodDeckSF + Street + GarageArea + LotShape + BsmtQual + 
+    Fireplaces + FireplaceQu + PoolArea + RoofStyle + BsmtFinSF2 + 
+    Utilities + ExterCond, data = Train)
+RF3<-randomForest(SalePrice ~ LotFrontage + LotArea + Street + LotShape + LandContour + 
+    Utilities + LotConfig + Neighborhood + Condition1 + Condition2 + 
+    BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + 
+    RoofMatl + Exterior1st + MasVnrType + MasVnrArea + ExterQual + 
+    ExterCond + Foundation + BsmtQual + BsmtCond + BsmtExposure + 
+    BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + 
+    HalfBath + BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + 
+    Functional + Fireplaces + FireplaceQu + GarageType + GarageCars + 
+    GarageArea + WoodDeckSF + X3SsnPorch + ScreenPorch + PoolQC + 
+    Fence + MiscFeature + MoSold + SaleCondition    , data = Train)
+RF4<-randomForest(SalePrice ~ MSSubClass+MSZoning+LotFrontage+LotArea+Alley+LotShape+LandContour+LandSlope+Neighborhood+
+BldgType+HouseStyle+OverallQual+OverallCond+YearBuilt+YearRemodAdd+RoofStyle+Exterior1st+Exterior2nd+
+MasVnrType+MasVnrArea+ExterQual+Foundation+BsmtQual+BsmtCond+BsmtExposure+BsmtFinType1+BsmtFinSF1+
+BsmtFinType2+BsmtUnfSF+TotalBsmtSF+HeatingQC+CentralAir+X1stFlrSF+X2ndFlrSF+GrLivArea+BsmtFullBath+
+FullBath+HalfBath+BedroomAbvGr+KitchenAbvGr+KitchenQual+TotRmsAbvGrd+Fireplaces+FireplaceQu+GarageType+
+GarageYrBlt+GarageFinish+GarageCars+GarageArea+GarageQual+GarageCond+PavedDrive+WoodDeckSF+OpenPorchSF
+,data=Train)
+
+
+
+summary(myLm1)
+summary(myLm2)
+summary(myLm3)
+summary(myLm4)
+```
+Some coefficients not defined due to singularities.
+
+#### Prediction with Random Forest
+```{r}
+pdRF1<-predict(RF1,interval='prediction',newdata=Test)
+pdRF2<-predict(RF2,interval='prediction',newdata=Test)
+pdRF3<-predict(RF3,interval='prediction',newdata=Test)
+pdRF4<-predict(RF4,interval='prediction',newdata=Test)
+
+par(mfrow=c(2,2))
+plot(actual,pdRF1,pch=3, main='Prediction VS Actual, all var')
+plot(actual,pdRF2,pch=3, col='blue',main='Prediction VS Actual, FowardSelect')
+plot(actual,pdRF3,pch=3, col='red',main='Prediction VS Actual, Backwards Elim')
+plot(actual,pdRF4,pch=3, col='green',main='Prediction VS Actual, Boruta')
+
+RMSLE(pdRF1,actual)
+RMSLE(pdRF2,actual)
+RMSLE(pdRF3,actual)
+RMSLE(pdRF4,actual)
+
+RMSE(pdRF1,actual)
+RMSE(pdRF2,actual)
+RMSE(pdRF3,actual)
+RMSE(pdRF4,actual)
+```
+
+
+#### SV Regression
+model <- svm(Y ~ X , data)
+```{r}
+SV1<-svm(SalePrice~.,data=Train, cost=4)
+
+
+SV2<-svm(SalePrice ~ OverallQual + GrLivArea + Neighborhood + BsmtFinSF1 + 
+    RoofMatl + MSSubClass + BsmtExposure + KitchenQual + Condition2 + 
+    SaleCondition + LotArea + YearBuilt + OverallCond + MasVnrArea + 
+    PoolQC + BedroomAbvGr + GarageCars + MasVnrType + TotalBsmtSF + 
+    BldgType + Functional + ExterQual + BsmtCond + Condition1 + 
+    Exterior1st + MoSold + GarageCond + ScreenPorch + LandContour + 
+    LowQualFinSF + LotConfig + LotFrontage + TotRmsAbvGrd + KitchenAbvGr + 
+    WoodDeckSF + Street + GarageArea + LotShape + BsmtQual + 
+    Fireplaces + FireplaceQu + PoolArea + RoofStyle + BsmtFinSF2 + 
+    Utilities + ExterCond, data=Train, cost=4)
+
+
+SV3<-svm(SalePrice ~ LotFrontage + LotArea + Street + LotShape + LandContour + 
+    Utilities + LotConfig + Neighborhood + Condition1 + Condition2 + 
+    BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + 
+    RoofMatl + Exterior1st + MasVnrType + MasVnrArea + ExterQual + 
+    ExterCond + Foundation + BsmtQual + BsmtCond + BsmtExposure + 
+    BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + 
+    HalfBath + BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + 
+    Functional + Fireplaces + FireplaceQu + GarageType + GarageCars + 
+    GarageArea + WoodDeckSF + X3SsnPorch + ScreenPorch + PoolQC + 
+    Fence + MiscFeature + MoSold + SaleCondition, data=Train, cost=4)    
+    
+SV4<-svm(SalePrice~MSSubClass+MSZoning+LotFrontage+LotArea+Alley+LotShape+LandContour+LandSlope+Neighborhood+
+BldgType+HouseStyle+OverallQual+OverallCond+YearBuilt+YearRemodAdd+RoofStyle+Exterior1st+Exterior2nd+
+MasVnrType+MasVnrArea+ExterQual+Foundation+BsmtQual+BsmtCond+BsmtExposure+BsmtFinType1+BsmtFinSF1+
+BsmtFinType2+BsmtUnfSF+TotalBsmtSF+HeatingQC+CentralAir+X1stFlrSF+X2ndFlrSF+GrLivArea+BsmtFullBath+
+FullBath+HalfBath+BedroomAbvGr+KitchenAbvGr+KitchenQual+TotRmsAbvGrd+Fireplaces+FireplaceQu+GarageType+
+GarageYrBlt+GarageFinish+GarageCars+GarageArea+GarageQual+GarageCond+PavedDrive+WoodDeckSF+OpenPorchSF, data=Train, cost=4)
+
+
+pdSV1<-predict(SV1,newdata=Test[,-80])
+pdSV2<-predict(SV2,newdata=Test[,-80])
+pdSV3<-predict(SV3,newdata=Test[,-80])
+pdSV4<-predict(SV4,newdata=Test[,-80])
+
+summary(SV1)
+par(mfrow=c(2,2))
+plot(actual,pdSV1,pch=3, main='Prediction VS Actual, all var')
+plot(actual,pdSV2,pch=3, col='blue',main='Prediction VS Actual, FowardSelect')
+plot(actual,pdSV3,pch=3, col='red',main='Prediction VS Actual, Backwards Elim')
+plot(actual,pdSV4,pch=3, col='green',main='Prediction VS Actual, Boruta')
+
+RMSLE(pdSV1,actual)
+RMSLE(pdSV2,actual)
+RMSLE(pdSV3,actual)
+RMSLE(pdSV4,actual)
+
+RMSE(pdSV1,actual)
+RMSE(pdRF2,actual)
+RMSE(pdRF3,actual)
+RMSE(pdRF4,actual)
+```
+#### Looking at below comparison, overall SVM > Random Forest > OLS.
+
+It looks like the SVM is showing the best result oddly enough with all variables then followed by Boruta selection. This could be because the dataset has many none normal distributions, has colinearity issues, and variance is not consistent and thus is not perfect candidate for using linear regression. I will transform some skewed items to log scale and try linear fit again to fine tune and also will tune SVM and Random forest to acheive better results.  
+
+Model 1
+RMLSE [1] 0.1837928 VS [1] 0.1436806 [1] 0.1287456
+RMSE  [1] 29630.08  VS [1] 23335.57 [1] 21198.8
+
+Model 2 
+[1] 0.1636028 VS [1] 0.1446042 [1] 0.1323565
+[1] 28584.97 VS [1] 23778.01 [1] 23668.95
+
+Model 3 
+[1] 0.1769506 VS  [1] 0.1508996 [1] 0.134205
+[1] 28721.35 VS [1] 24579.31 [1] 24408.31
+
+Model 4
+[1] 0.1735936 VS [1] 0.1436703 [1] 0.1299854
+[1] 27252.57 VS [1] 23337.88 1] 23437.68
+
+
+#### BELOW NOT READY ####
+#### Regularization Method ####
+
+
+myLm<-train(
+  SalePrice ~., data = Train,
+  method='lm', trControl=Mycontrols)
+
+
+
+#Lasso
+
+```{r, eval=F}
+myLasso1 <-train(SalePrice~.,
+                 data = Train
+                 ,method='glmnet',
+                 tuneGrid=expand.grid(alpha=1,lambda=seq(500,1500,length=100)), trControl=Mycontrols)
+myLasso2 <-train(
+  SalePrice ~ OverallQual + GrLivArea + Neighborhood + 
+    BsmtFinSF1 + RoofMatl + MSSubClass + BsmtExposure + KitchenQual + 
+    Condition2 + SaleCondition + LotArea + YearBuilt + OverallCond + 
+    MasVnrArea + PoolQC + BedroomAbvGr + GarageCars + GarageFinish + 
+    TotalBsmtSF + BldgType + MasVnrType + Functional + ExterQual + 
+    BsmtCond + Condition1 + Exterior1st + LandContour + MoSold + 
+    ScreenPorch + LowQualFinSF + LotConfig + LotFrontage + WoodDeckSF + 
+    Street + GarageArea + KitchenAbvGr + TotRmsAbvGrd + LotShape + 
+    ExterCond + PoolArea + BsmtFinSF2 + Fireplaces + FireplaceQu + 
+    BsmtQual + X3SsnPorch + Foundation + Utilities, data = Train
+  ,method='glmnet',tuneGrid=expand.grid(alpha=1,lambda=seq(500,1500,length=100)), trControl=Mycontrols)
+
+
+```
+
+
+
+
+```{r, eval=F}
+plot(myLasso1)
+plot(varImp(myLasso1), Scale=F)
+varImp(myLasso1)
+myLasso1$bestTune
+myLasso1
+plot(myLasso1$finalModel)
+coef(myLasso1)
+
+plot(myLasso2)
+plot(varImp(myLasso2), Scale=F)
+varImp(myLasso2)
+myLasso2$bestTune
+myLasso2
+plot(myLasso2$finalModel)
+coef(myLasso2)
+```
+
+## Elasticnet
+
+
+myEla<-train(SalePrice~.,Train,method='glmnet',tuneGrid=expand.grid(alpha=seq(0, 1,length=10),lambda=seq(0.0001,2000,length=20)), trControl=Mycontrols)
+
+plot(myEla)
+plot(varImp(myEla))
+varImp(myEla)
+myEla$bestTune
+myEla
+```
+

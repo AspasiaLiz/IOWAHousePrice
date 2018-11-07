@@ -1,0 +1,67 @@
+---
+title: "Step 4.2 Quantile Regression"
+author: "Hyunkyung Kim"
+date: "November 6, 2018"
+output: pdf_document
+---
+
+I had so many errors trying to use quantile regression tool, so my used variables are quite limited and this is very basic.
+
+```{r}
+#install.packages("glmnet")
+#install.packages("mlbench")
+#install.packages("Boruta")
+library(caret)
+library(tidyverse)
+library(psych)
+library(glmnet)
+library(mlbench)
+library(Boruta)
+library(MASS) # stepwise regression
+library(leaps) # all subsets regression
+library(randomForest)
+library(MLmetrics)
+library(quantreg)
+
+```
+
+```{r}
+set.seed(999)
+Mycontrols<-trainControl(method='repeatedcv',number=10, repeats=5,verboseIter = F)
+```
+### Import Cleaned Data
+
+```{r}
+
+H_Clean<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\H_clean.csv")
+
+Train<-H_Clean[!is.na(H_Clean$SalePrice),-1] #Remove ID
+Test<-H_Clean[is.na(H_Clean$SalePrice),-1] 
+```
+
+```{r}
+
+Y<-Train[,80]
+Ylog<-log10(Y)
+X1<-Train[,unlist(lapply(Train, is.numeric))]
+b<-apply(X1,2,sd)
+b[b>2]
+#X1<-Train[,unlist(lapply(Train, is.numeric))]
+X2<-cbind(Train$LotArea,Train$YearBuilt,Train$GrLivArea,Train$TotalBsmtSF, Train$GarageArea ,Train$OverallCond+Train$YearBuilt+Train$OVerallcond + Train$OverallQual)
+colnames(Train)
+
+MyQR<-rq(Y~X2, tau= seq(0.05,0.95,by=0.05), data=Train)
+MyQRLog<-rq(Ylog~X2, tau= seq(0.05,0.95,by=0.05), data=Train)
+```
+```{r}
+plot(summary(MyQR))
+plot(summary(MyQRLog))
+summary(MyQRLog)
+```
+
+For regular prediction 
+the coefficients do not vary too much from mean (red lines) for LotArea,
+However, the effect decreases for the YearBuilt.
+GrLivArea seems to be a bigger factor for the higher quantile.
+TotalBsmtSF, Tr
+GarageArea ,Train$\\OverallCond+Train$YearBuilt+Train$OVerallcond + Train$OverallQua
