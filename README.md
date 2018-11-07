@@ -11,11 +11,20 @@ Correcting incorrect values (Year 2207 for example, and NAs where it should have
 
 
 Step 3 : Feature Selection
-Look at foward selection, backwards elimination and use Boruta package (random forest tree - feature selection) to select features.
+Look at foward selection, backwards elimination, stepwise regression and use Boruta package (random forest tree - feature selection) to select features.
 
 Step 3.2 : Log Transformation 
 
-Step 4 : Regression
+Step 4 : Regression using 3 models from step 3 + using all features (4 options)
+1. Linear Regression
+2. Random Forest 
+3. SVM 
+prediction are done and RMSE/RMSLE calculated. SVM performs the best but will do some tuning.
+Also working on Lasso/Ridge/Elasticnet.
+
+
+Step 4.2 : Quantile Regression - Encountering many errors. Working on it.
+
 
 
 
