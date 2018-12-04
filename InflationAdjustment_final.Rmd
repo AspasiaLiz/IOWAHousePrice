@@ -1,0 +1,102 @@
+---
+title: "Inflation"
+author: "Hyunkyung Kim"
+date: "November 30, 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#install.packages("glmnet")
+#install.packages("mlbench")
+#install.packages("Boruta")
+library(caret)
+library(tidyverse)
+library(psych)
+library(glmnet)
+library(mlbench)
+library(Boruta)
+library(MASS) # stepwise regression
+library(leaps) # all subsets regression
+library(randomForest)
+```
+
+#### Import Clean Data
+#### Import Price Adjustment Factor
+
+```{r}
+
+H_Clean<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\H_clean.csv")
+H_Clean$MSSubClass<-as.factor(H_Clean$MSSubClass)
+Train<-H_Clean[!is.na(H_Clean$SalePrice),]
+Test<-H_Clean[is.na(H_Clean$SalePrice),]
+HPAdjustF<-read.csv("C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\Price_Adjust.csv")
+actual<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\AMES_test.csv")[1461:2919,2]
+
+```
+
+##### Merge two df & make adjusted column.
+
+```{r}
+H_Adjust<-merge(H_Clean,HPAdjustF, by=c('YrSold','MoSold'))
+H_Adjust<-H_Adjust[order(H_Adjust$Id),]
+H_Adjust<-H_Adjust[,names(H_Adjust)!="observation_date"] # Remove Obs Date
+H_Adjust$PriceAdjusted<-H_Adjust$SalePrice/H_Adjust$DivideBy
+```
+
+#### Look at the Pricing Difference.
+```{r}
+par(mfrow=(c(1,3)))
+boxplot(H_Adjust$SalePrice~H_Adjust$YrSold, main='SalePrice VS YearSold')
+boxplot(H_Adjust$PriceAdjusted~H_Adjust$YrSold, main='Adjusted SalePrice VS YearSold')
+plot(H_Adjust$SalePrice,H_Adjust$PriceAdjusted, col='red')
+RMSE(log(H_Adjust$SalePrice[1:1459]),log(H_Adjust$PriceAdjusted[1:1459]))
+abline(a=0,b=1)
+```
+Due to inflation, adjusted price is generally lower than the actual price. (The line shows x=y)
+
+```{r}
+# Remove unnecessary features, 
+H_Adj_Train<-H_Adjust[,names(H_Adjust)!=c("Id","CPIHOSNS","DivideBy","SalePrice")]
+H_Adj_Train<-H_Adj_Train[,names(H_Adj_Train)!="Id"]
+H_Adj_Train<-H_Adj_Train[,names(H_Adj_Train)!="SalePrice"]
+
+Reg<-lm(SalePrice~.,data=H_Clean)
+Adjusted<-lm(PriceAdjusted~., data=H_Adj_Train)
+```
+
+```{r}
+summary(Reg)
+summary(Adjusted)
+
+```
+
+Compare RMSE.
+```{r}
+aa<-predict(Adjusted,newdata=H_Adj_Train[1461:2919,-80])
+
+bb<-as.data.frame(cbind(H_Adj_Train[1461:2919,-80],aa))
+bb$Id<-1461:2919
+
+bb_check<-merge(bb,HPAdjustF, by=c('YrSold','MoSold'))
+bb_check<-bb_check[order(bb_check$Id),]
+bb_check$OrigPrice<-bb_check$aa*bb_check$DivideBy
+
+
+a1<-predict(Reg,newdata=H_Clean[1461:2919,])
+
+RMSE(a1,actual)
+RMSE(log(a1), log(actual))
+
+RMSE(bb_check$OrigPrice, actual)
+RMSE(log(bb_check$OrigPrice),log(actual))
+
+```
+
+RMSLE without price adjustment is 0.1831 where with CPI adjustment is 1.824. It is better but marginally.
+
