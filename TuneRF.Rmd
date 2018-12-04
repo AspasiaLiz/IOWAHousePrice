@@ -1,0 +1,209 @@
+---
+title: "RandomForestTuning"
+author: "Hyunkyung Kim"
+date: "November 30, 2018"
+output: html_document
+---
+
+```{r}
+#install.packages("glmnet")
+#install.packages("mlbench")
+#install.packages("Boruta")
+library(caret)
+library(tidyverse)
+library(psych)
+library(glmnet)
+library(mlbench)
+library(Boruta)
+library(MASS) # stepwise regression
+library(leaps) # all subsets regression
+library(randomForest)
+library(MLmetrics)
+library(e1071)
+```
+
+### Import Cleaned Data
+
+```{r}
+
+H_Clean<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\H_clean.csv")
+
+Train<-H_Clean[!is.na(H_Clean$SalePrice),-1] #Remove ID
+Test<-H_Clean[is.na(H_Clean$SalePrice),-1] 
+actual<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\AMES_test.csv")[1461:2919,2] # Test Price
+```
+
+
+
+```{r}
+f2<-SalePrice ~ OverallQual + GrLivArea + Neighborhood + BsmtFinSF1 + 
+    RoofMatl + MSSubClass + BsmtExposure + KitchenQual + Condition2 + 
+    SaleCondition + LotArea + YearBuilt + OverallCond + MasVnrArea + 
+    PoolQC + BedroomAbvGr + GarageCars + MasVnrType + TotalBsmtSF + 
+    BldgType + Functional + ExterQual + BsmtCond + Condition1 + 
+    Exterior1st + MoSold + GarageCond + ScreenPorch + LandContour + 
+    LowQualFinSF + LotConfig + LotFrontage + TotRmsAbvGrd + KitchenAbvGr + 
+    WoodDeckSF + Street + GarageArea + LotShape + BsmtQual + 
+    Fireplaces + FireplaceQu + PoolArea + RoofStyle + BsmtFinSF2 + 
+    Utilities + ExterCond
+f3<- SalePrice ~ LotFrontage + LotArea + Street + LotShape + LandContour + 
+    Utilities + LotConfig + Neighborhood + Condition1 + Condition2 + 
+    BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + 
+    RoofMatl + Exterior1st + MasVnrType + MasVnrArea + ExterQual + 
+    ExterCond + Foundation + BsmtQual + BsmtCond + BsmtExposure + 
+    BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + 
+    HalfBath + BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + 
+    Functional + Fireplaces + FireplaceQu + GarageType + GarageCars + 
+    GarageArea + WoodDeckSF + X3SsnPorch + ScreenPorch + PoolQC + 
+    Fence + MiscFeature + MoSold + SaleCondition    
+
+f4<-SalePrice ~MSSubClass+MSZoning+LotFrontage+LotArea+Alley+LotShape+LandContour+LandSlope+Neighborhood+
+BldgType+HouseStyle+OverallQual+OverallCond+YearBuilt+YearRemodAdd+RoofStyle+Exterior1st+Exterior2nd+
+MasVnrType+MasVnrArea+ExterQual+Foundation+BsmtQual+BsmtCond+BsmtExposure+BsmtFinType1+BsmtFinSF1+
+BsmtFinType2+BsmtUnfSF+TotalBsmtSF+HeatingQC+CentralAir+X1stFlrSF+X2ndFlrSF+GrLivArea+BsmtFullBath+
+FullBath+HalfBath+BedroomAbvGr+KitchenAbvGr+KitchenQual+TotRmsAbvGrd+Fireplaces+FireplaceQu+GarageType+
+GarageYrBlt+GarageFinish+GarageCars+GarageArea+GarageQual+GarageCond+PavedDrive+WoodDeckSF+OpenPorchSF
+
+```
+
+
+Tuning for Random Forest Using Different Parameters.
+Mtrystart - where to start tuning mtry from.
+Improve - stop when the difference is less than the criteria.
+
+```{r}
+set.seed(100)
+tuneRF10<-tuneRF(Train[,-80],Train[,80], mtryStart=16,StepFactor=1 ,improve=0.0001, Trace=T,Plot=T,ntreeTry=500, doBest = T)
+tuneRF11<-tuneRF(Train[,-80],Train[,80],StepFactor=1 ,improve=0.0001, Trace=T,Plot=T,ntreeTry=500, doBest = T)
+
+```
+
+
+
+```{r}
+set.seed(100)
+tuneRF14<-tuneRF(Train[,-80],Train[,80],StepFactor=1.3,  mtryStart=22 ,improve=0.0001, Trace=T,Plot=T,ntreeTry=500, doBest = T)
+tuneRF15<-tuneRF(Train[,-80],Train[,80],StepFactor=1.3, mtryStart=35 ,improve=0.0001, Trace=T,Plot=T,ntreeTry=500, doBest = T)
+
+```
+
+```{r}
+print(tuneRF14)
+```
+
+
+
+#mtry is no of Variables randomly chosen at each split
+
+# Looking for Optimum # of mtry by tuning manually. Divided into 4 portions so that the running time is more managable.
+```{r}
+ oobMSE<-vector()
+for (i in 1:20){
+ 
+  rf=randomForest(SalePrice~.,data=Train, ntree=500,mtry=i)
+oobMSE[i]<-rf$mse[500]
+  cat(i,rf$mse[500], " ")
+}
+
+```
+
+
+```{r}
+for (i in 21:40){
+  rf=randomForest(SalePrice~.,data=Train, ntree=500,mtry=i, trcontrol=)
+oobMSE[i]<-rf$mse[500]
+cat(i,rf$mse[500], " ")
+}
+```
+
+
+```{r}
+for (i in 41:60){
+  rf=randomForest(SalePrice~.,data=Train, ntree=500,mtry=i)
+oobMSE[i]<-rf$mse[500]
+cat(i,rf$mse[500], " ")
+}
+```
+
+```{r}
+for (i in 60:75){
+  rf=randomForest(SalePrice~.,data=Train, ntree=500,mtry=i)
+oobMSE[i]<-rf$mse[500]
+cat(i,rf$mse[500], " ")
+}
+```
+
+```{r}
+plot(oobMSE[-1], type='o',main='All Features- # of Mtry Tuning',xlab='Mtry', ylab='Out of Bag Error - MSE')
+
+which.min(oobMSE)
+min(oobMSE)
+log(min(oobMSE))
+```
+Best mtry looks like 26 for 500 trees if all the variables are selected.
+
+
+
+
+
+# FOr Boruta Selection f4
+
+```{r}
+ oobMSE4<-vector()
+for (i in 1:20){
+    rf=randomForest(f4,data=Train, ntree=500,mtry=i)
+oobMSE4[i]<-rf$mse[500]
+  cat(i,rf$mse[500], " ")
+}
+
+  
+```
+ 
+
+```{r}
+for (i in 21:40){
+    rf=randomForest(f4,data=Train, ntree=500,mtry=i)
+oobMSE4[i]<-rf$mse[500]
+  cat(i,rf$mse[500], " ")
+}
+
+
+```
+
+
+```{r}
+for (i in 41:54){
+    rf=randomForest(f4,data=Train, ntree=500,mtry=i)
+oobMSE4[i]<-rf$mse[500]
+  cat(i,rf$mse[500], " ")
+}
+
+
+```
+
+
+```{r}
+plot(oobMSE4[-1],type='o', col='red', main='Boruta Feature SL - # of Mtry Tuning',xlab='Mtry', ylab='Out of Bag Error - MSE')
+which.min(oobMSE4)
+min(oobMSE4)
+sqrt(min(oobMSE4))
+```
+Best ntree=16. Apply 
+```{r}
+ rf4=randomForest(f4,data=Train,  mtry = 16,ntree=500)
+
+RMSE((rf4$predicted),Train$SalePrice)
+
+```
+
+```{r}
+Atr<-predict(rf4,newdata=Train,interval='prediction')
+Ate<-predict(rf4,newdata=Test, interval='prediction')
+RMSE(Atr,Train$SalePrice)
+RMSLE(Atr,Train$SalePrice)
+
+RMSE(Ate,actual)
+RMSE(log(Ate),log(actual))
+```
+
+
