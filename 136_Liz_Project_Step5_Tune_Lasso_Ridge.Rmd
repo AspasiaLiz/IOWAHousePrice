@@ -1,0 +1,288 @@
+---
+title: "Reg_Linear_Reg"
+author: "Hyunkyung Kim"
+date: "December 3, 2018"
+output:
+  word_document: default
+  html_document: default
+  pdf_document: default
+---
+
+
+```{r}
+#install.packages("glmnet")
+#install.packages("mlbench")
+#install.packages("Boruta")
+library(caret)
+library(tidyverse)
+library(psych)
+library(glmnet)
+library(mlbench)
+library(Boruta)
+library(MASS) # stepwise regression
+library(leaps) # all subsets regression
+library(randomForest)
+```
+
+
+
+### Import Clean Data
+
+
+```{r}
+
+H_Clean<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\H_clean.csv")
+#H_Clean$MSSubClass<-as.factor(H_Clean$MSSubClass)
+#Train<-H_Clean[!is.na(H_Clean$SalePrice),]
+#Test<-H_Clean[is.na(H_Clean$SalePrice),]
+act<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\AMES_test.csv")
+# Test Price
+H_clean_Combined<-merge(H_Clean[,-81], act, by = 'Id')
+actual<-act[1461:2919,2]
+```
+
+Divide as Train/Validate/Test set - give indexes.- Possibly for future.
+
+Train - 1:1460 (50%)
+Validate  - Random from 1460 to 2919 (20%)
+Test - Random from 1460 to 2919 (30%)
+```{r}
+set.seed(100)
+
+IndexTrain<-1:1460
+IV<-NULL
+IV[1:1460]<-0
+IV[1461:2919]<-sample(2,1459, replace=T, prob=c(0.4,0.6))
+#IV<-
+## IV==1 is Validate, IV=2 is Test
+
+#HTrain<-H_clean_Combined[IV==0,]
+#HValid<-H_clean_Combined[IV==1,]
+#HTest<-H_clean_Combined[IV==2,]
+
+#
+H_Eng<-H_clean_Combined 
+```
+
+Remove Utilities - among 2919 observations there are only 1 exception and there is no point of keeping it. This is in the training set but since the test set does not contain any of level 1 and one observation will give too much variance. This is also causing issues when tuning.
+```{r}
+H_Eng<-H_Eng[,names(H_Eng)!="Utilities"] 
+```
+
+
+
+Function to predict and shoot out RMSE(log)
+```{r}
+PdRMSE<-function(x,y=H_Clean[1461:2919,-81],z=actual){
+Pdfun<-predict(x,newdata=y)
+#return(Pdfun)
+return(RMSE(log(Pdfun),log(z)))
+
+}
+```
+
+```{r}
+f2<-SalePrice ~ OverallQual + GrLivArea + Neighborhood + BsmtFinSF1 + 
+    RoofMatl + MSSubClass + BsmtExposure + KitchenQual + Condition2 + 
+    SaleCondition + LotArea + YearBuilt + OverallCond + MasVnrArea + 
+    PoolQC + BedroomAbvGr + GarageCars + MasVnrType + TotalBsmtSF + 
+    BldgType + Functional + ExterQual + BsmtCond + Condition1 + 
+    Exterior1st + MoSold + GarageCond + ScreenPorch + LandContour + 
+    LowQualFinSF + LotConfig + LotFrontage + TotRmsAbvGrd + KitchenAbvGr + 
+    WoodDeckSF + Street + GarageArea + LotShape + BsmtQual + 
+    Fireplaces + FireplaceQu + PoolArea + RoofStyle + BsmtFinSF2 +      ExterCond #Removed Utilities.
+f3<- SalePrice ~ LotFrontage + LotArea + Street + LotShape + LandContour + 
+    Utilities + LotConfig + Neighborhood + Condition1 + Condition2 + 
+    BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + 
+    RoofMatl + Exterior1st + MasVnrType + MasVnrArea + ExterQual + 
+    ExterCond + Foundation + BsmtQual + BsmtCond + BsmtExposure + 
+    BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + 
+    HalfBath + BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + 
+    Functional + Fireplaces + FireplaceQu + GarageType + GarageCars + 
+    GarageArea + WoodDeckSF + X3SsnPorch + ScreenPorch + PoolQC + 
+    Fence + MiscFeature + MoSold + SaleCondition    
+
+f4<-SalePrice ~MSSubClass+MSZoning+LotFrontage+LotArea+Alley+LotShape+LandContour+LandSlope+Neighborhood+
+BldgType+HouseStyle+OverallQual+OverallCond+YearBuilt+YearRemodAdd+RoofStyle+Exterior1st+Exterior2nd+
+MasVnrType+MasVnrArea+ExterQual+Foundation+BsmtQual+BsmtCond+BsmtExposure+BsmtFinType1+BsmtFinSF1+
+BsmtFinType2+BsmtUnfSF+TotalBsmtSF+HeatingQC+CentralAir+X1stFlrSF+X2ndFlrSF+GrLivArea+BsmtFullBath+
+FullBath+HalfBath+BedroomAbvGr+KitchenAbvGr+KitchenQual+TotRmsAbvGrd+Fireplaces+FireplaceQu+GarageType+
+GarageYrBlt+GarageFinish+GarageCars+GarageArea+GarageQual+GarageCond+PavedDrive+WoodDeckSF+OpenPorchSF
+
+```
+
+
+Divide into numeric and categorical.
+
+```{r}
+HC_numeric<-unlist(lapply(H_Clean,is.numeric))
+HC_cat<-unlist(lapply(H_Clean,is.factor))
+```
+
+
+Need to update factors into numerics for glmnet - otherwise do not work.
+x_train <- model.matrix( ~ .-1, train[,features])
+best_lambda <- lm$lambda[which.min(lm$cvm)]
+H_cat_dummy
+
+###Lasso
+
+
+```{r}
+tc<-trainControl(method="repeatedcv", number=10, repeats=5)
+#Trainset -DummyVariables
+H_Dummy_Train<-  as.data.frame(model.matrix(~.-1,data=H_Eng[IV==0,-1], na.action = na.pass)) # Remove ID
+
+#TestSet  -DummyVariables
+H_Dummy_Test<-  as.data.frame(model.matrix(~.-1,data=H_Eng[1461:2919,-c(1,80)])) # RemoveID, salePrice
+  #as.data.frame
+
+dim(H_Dummy_Train)
+
+set.seed(12334)
+
+myLasso1<-train(SalePrice~.,
+                 data = H_Dummy_Train
+                 ,method='glmnet', 
+                 tuneGrid=expand.grid(alpha=1,lambda=seq(0.001,5000,length=50)), trControl=tc)
+myLasso2<-train(SalePrice~., data = H_Dummy_Train[-c(524,1299),]
+  ,method='glmnet',tuneGrid=expand.grid(alpha=1,lambda=seq(0.001,5000,length=50)), trControl=tc)
+#myLasso3 <-train(f3, data = H_Dummy_Train
+#  ,method='glmnet',tuneGrid=expand.grid(alpha=1,lambda=seq(500,1500,length=50)), trControl=tc)
+#myLasso4 <-train(f4, data = H_Dummy_Train
+ # ,method='glmnet',tuneGrid=expand.grid(alpha=1,lambda=seq(500,1500,length=50)), trControl=tc)
+
+
+```
+
+
+
+
+```{r}
+set.seed(12334)
+
+plot(myLasso1, main='model1')
+plot(myLasso2, main='model2')
+#plot(myLasso3,main='model3')
+#plot(myLasso4,main='model4')
+
+plot(varImp(myLasso1), Scale=F, top=30)
+plot(varImp(myLasso2), Scale=F ,top=30)
+#plot(varImp(myLasso3), Scale=F, top=25)
+#plot(varImp(myLasso4), Scale=F ,top=25)
+
+varImp(myLasso1)
+varImp(myLasso2)
+#varImp(myLasso3)
+#varImp(myLasso4)
+
+
+coef(myLasso1)
+coef(myLasso2     )
+#coef(myLasso3)
+#coef(myLasso4)
+
+myLasso1$bestTune
+myLasso2$bestTune
+#myLasso3$bestTune
+#myLasso4$bestTune
+
+plot(myLasso1$finalModel, label=T)
+plot(myLasso2$finalModel ,label=T)
+#plot(myLasso3$finalModel)
+#plot(myLasso4$finalModel)
+
+
+```
+
+Example of Coeff
+```{r}
+coef(myLasso1$finalModel, s=myLasso1$bestTune$lambda)
+
+```
+
+
+```{r}
+abcde<-predict(myLasso1, newdata=H_Dummy_Test)
+#RMSE(abcde, actual) 
+     
+
+PdRMSE(myLasso1,H_Dummy_Test,H_Eng$SalePrice[1461:2919])
+PdRMSE(myLasso2,H_Dummy_Test,H_Eng$SalePrice[1461:2919])
+```
+Ridge
+```{r}
+set.seed(12334)
+myRidge1 <-train(SalePrice~.,
+                 data = H_Dummy_Train
+                 ,method='glmnet', 
+                 tuneGrid=expand.grid(alpha=0,lambda=seq(0.001,50000,length=50)), trControl=tc)
+set.seed(12334)
+myRidge2 <-train(SalePrice~., data = H_Dummy_Train[-c(524,1299),]
+  ,method='glmnet',tuneGrid=expand.grid(alpha=0,lambda=seq(0.001,50000,length=50)), trControl=tc) # without outlier
+
+
+```
+
+
+```{r}
+
+plot(myRidge1, main='model1')
+plot(myRidge2, main='model2')
+
+plot(varImp(myRidge1), Scale=F, top=30)
+plot(varImp(myRidge2), Scale=F ,top=30)
+
+varImp(myRidge1)
+varImp(myRidge2)
+
+
+myRidge1$bestTune
+myRidge2$bestTune
+
+
+plot(myRidge1$finalModel)
+plot(myRidge2$finalModel)
+
+```
+
+## Elasticnet
+
+```{r}
+PdRMSE(myRidge1,H_Dummy_Test)
+PdRMSE(myRidge2,H_Dummy_Test)
+```
+
+
+
+```{r}
+set.seed(12334)
+myEla1<-train(SalePrice~.,data=H_Dummy_Train,method='glmnet',tuneGrid=expand.grid(alpha=seq(0, 1,length=11),lambda=seq(0.0001,1500,length=30)), trControl=tc)
+
+```
+
+```{r}
+
+min(myEla1$result$RMSE)
+plot(myEla1, cex=0.8)
+plot(myEla1,  ylim=c(30000,40000))
+plot(varImp(myEla1),top=25)
+varImp(myEla1)
+myEla1$bestTune
+myEla1
+PdEla1<-predict(myEla1, newdata=H_Dummy_Test)
+RMSE(log(PdEla1), log(actual))
+
+PdRMSE(myEla1,H_Dummy_Test,H_Eng$SalePrice[1461:2919])
+```
+
+Plot Elasticnet Result
+```{r}
+par(mfrow=c(1,2))
+plot(H_Eng$SalePrice[1461:2919], PdEla1, col=203)
+abline(a=0,b=1)
+plot(log(H_Eng$SalePrice[1461:2919]), log(PdEla1), col=204)
+abline(a=0,b=1)
+```
+
+
