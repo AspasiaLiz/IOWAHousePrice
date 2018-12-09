@@ -1,4 +1,4 @@
-136\_Liz\_Project\_Step5\_Feature Engineering
+136\_Liz\_Project\_Step5\_Log Transformation
 ================
 Hyunkyung Kim
 November 6, 2018
