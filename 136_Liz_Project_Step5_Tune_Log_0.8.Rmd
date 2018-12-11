@@ -1,0 +1,583 @@
+---
+title: "136_Liz_Project_Step5_Log Transformation - 0.8"
+author: "Hyunkyung Kim"
+date: "November 6, 2018"
+output: word_document
+---
+
+```{r}
+#install.packages("glmnet")
+#install.packages("mlbench")
+#install.packages("Boruta")
+library(caret)
+library(tidyverse)
+library(psych)
+library(glmnet)
+library(mlbench)
+library(Boruta)
+library(MASS) # stepwise regression
+library(leaps) # all subsets regression
+library(randomForest)
+library(caret)
+library(tidyverse)
+library(psych)
+library(glmnet)
+library(mlbench)
+library(Boruta)
+library(MASS) # stepwise regression
+library(leaps) # all subsets regression
+library(randomForest)
+library(MLmetrics)
+library(e1071)
+library(car) # VIF 
+```
+
+### Import Clean Data
+
+```{r}
+
+H_Clean<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\H_clean.csv")
+H_Clean$MSSubClass<-as.factor(H_Clean$MSSubClass)
+Train<-H_Clean[!is.na(H_Clean$SalePrice),]
+Test<-H_Clean[is.na(H_Clean$SalePrice),]
+actual<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\AMES_test.csv")[1461:2919,2] # Test Price
+
+```
+
+
+
+Utilities has extremely low variance where only 1 out 2919 observation is different. This is not really useful and I will drop this.
+
+
+```{r}
+H_Eng<-H_Clean[,names(H_Clean)!="Utilities"]
+```
+
+Add Full bath and half baths into one BathAbvGrd and BsmtFullBath+BsmtHalfBath into BsmtBath
+```{r}
+H_Eng$BathAbvGrd<-H_Eng$FullBath+0.5*H_Eng$HalfBath
+H_Eng$BsmtBath<-H_Eng$BsmtFullBath+0.5*H_Eng$BsmtHalfBath
+
+plot( H_Eng$BathAbvGrd, H_Eng$SalePrice)
+abline(lm(H_Eng$SalePrice~H_Eng$BathAbvGrd, data=H_Eng), col='red')
+plot(H_Eng$BsmtBath, H_Eng$SalePrice)
+abline(lm(H_Eng$SalePrice~H_Eng$BsmtBath, data=H_Eng), col='red')
+
+# Remove original columns
+#H_Eng<-H_Eng[,!names(H_Clean) %in% c("FullBath",'HalfBath','BathAbvGrd','BsmtBath')]
+H_Eng<-subset(H_Eng, select=-c(FullBath,HalfBath,BathAbvGrd,BsmtBath))
+```
+
+## Log Transformation due to Skewness
+As Discussed in Step1, we have a few variables including response variable that thas high skewness.
+
+```{r}
+H_num<-H_Eng[,sapply(H_Eng,is.numeric)] #Numerical
+H_num<-H_num[-c(1)]
+H_cat<-H_Eng[,sapply(H_Eng[,-1],is.factor)] # Categorical
+Check<-describe(H_num)[,c(11,12)]
+Check[Check$skew>0.75 & Check$skew<1 ,]
+Check[Check$skew<(-1) ,]
+```
+
+
+
+Below items all high skewness and may need transformation.- Skew over 1
+- Removed ordinal items.
+
++                skew kurtosis
+
+LotFrontage     1.33     9.12
+LotArea        12.82   264.31
+MasVnrArea      2.61     9.31
+ExterCond       1.32     6.27
+TotalBsmtSF     1.16     9.10
+X1stFlrSF       1.47     6.94
+LowQualFinSF   12.08   174.51
+GrLivArea       1.27     4.11
+BsmtHalfBath    3.93    14.82
+KitchenAbvGr    4.30    19.73
+PavedDrive     -2.98     7.10
+WoodDeckSF      1.84     6.72
+OpenPorchSF     2.53    10.91
+EnclosedPorch   4.00    28.31
+X3SsnPorch     11.37   149.05
+ScreenPorch     3.94    17.73
+PoolArea       16.89   297.91
+PoolQC         15.86   255.66
+MiscVal        21.94   562.72
+SalePrice       1.88     6.50
+
++ now add 
+
+ExterQual    0.79     0.06 ** not ordinal items.
+BsmtUnfSF    0.92     0.40
+X2ndFlrSF    0.86    -0.43
+TotRmsAbvGrd 0.76     1.16
+
+#### Subset non-normal variables.
+```{r}
+H_SkewedVar<-H_Eng[,c(
+  
+'LotFrontage',
+'LotArea',
+'MasVnrArea',
+'TotalBsmtSF',
+'X1stFlrSF',
+'LowQualFinSF',
+'GrLivArea',
+'BsmtHalfBath',
+'KitchenAbvGr',
+'OpenPorchSF',
+'EnclosedPorch',
+'X3SsnPorch',
+'ScreenPorch',
+'PoolArea',
+'MiscVal',
+'SalePrice')]
+
+H_Lo<-H_Eng
+```
+
+
+Apply Log only to the skewed items
+```{r}
+H_Lo[,c(
+  
+'LotFrontage',
+'LotArea',
+'MasVnrArea',
+'BsmtFinSF1',
+'BsmtFinSF2',
+'TotalBsmtSF',
+'X1stFlrSF',
+'LowQualFinSF',
+'GrLivArea',
+'BsmtHalfBath',
+'KitchenAbvGr',
+'OpenPorchSF',
+'EnclosedPorch',
+'X3SsnPorch',
+'ScreenPorch',
+'PoolArea',
+'MiscVal',
+'SalePrice',
+
+'BsmtUnfSF',   
+'X2ndFlrSF',    
+'TotRmsAbvGrd'
+)]<-log(1+H_Lo[,c(
+  
+'LotFrontage',
+'LotArea',
+'MasVnrArea',
+'BsmtFinSF1',
+'BsmtFinSF2',
+'TotalBsmtSF',
+'X1stFlrSF',
+'LowQualFinSF',
+'GrLivArea',
+'BsmtHalfBath',
+'KitchenAbvGr',
+'OpenPorchSF',
+'EnclosedPorch',
+'X3SsnPorch',
+'ScreenPorch',
+'PoolArea',
+'MiscVal',
+'SalePrice',
+'BsmtUnfSF',   
+'X2ndFlrSF',   
+'TotRmsAbvGrd' 
+)])
+```
+
+```{r}
+head(H_Lo)
+head(H_Eng)
+```
+
+Feature Selection done on the engineered training set.
+
+
+```{r}
+nulllog<-lm(SalePrice~1,data=H_Lo[1:1460,])
+fulllog<-lm(SalePrice~.,data=H_Lo[1:1460,])
+
+StepF_Log<-stepAIC(nulllog, scope=list(lower=nulllog, upper=fulllog), direction='forward', trace=F)
+StepB_Log<-stepAIC(fulllog, direction='backward', trace=F)
+StepS_Log<-stepAIC(fulllog,direction='both', trace=F)
+
+```
+
+
+```{r}
+summary(StepF_Log)
+summary(StepB_Log)
+summary(StepS_Log)
+```
+
+Train<-H_Clean[!is.na(H_Clean$SalePrice),-1]
+```{r}
+StepF_Log$call
+StepB_Log$call
+StepS_Log$call
+#summary(StepB_Log)
+#summary(StepS_Log)
+identical(StepB_Log$call, StepS_Log$call) # Shows they are same.
+identical(StepF_Log$call, StepS_Log$call)
+```
+
+```{r}
+TR<-1:1460
+TR_RmvOut<-TR[-c(524,1299)]
+
+a<-(lm(SalePrice~.,data=H_Lo[TR,-1])) # Removing ID 
+b<-lm(StepF_Log$call,data=H_Lo[TR,-1])
+c<-lm(StepS_Log$call,data=H_Lo[TR,-1])
+par(mfrow=c(2,2))
+plot(a, sub='ALL Var')
+plot(b, sub='Foward Sel')
+plot(c, sub='Backwards El')
+plot(a,which=c(4))
+plot(b,which=c(4))
+
+
+#pdtrain<-predict(a,newdata=H_Lo[!is.na(H_Lo$SalePrice),])
+pd_Log_LM_All<-predict(a,newdata=H_Lo[is.na(H_Lo$SalePrice),])
+pd_Log_LM_f2<-predict(b,newdata=H_Lo[is.na(H_Lo$SalePrice),])
+pd_Log_LM_f3<-predict(c,newdata=H_Lo[is.na(H_Lo$SalePrice),])
+#trainSP<-H_Lo$SalePrice[!is.na(H_Lo$SalePrice)]
+
+
+#plot(exp(trainSP),exp(pdtrain), col='blue', ylab='Prediction')
+#points(actual,exp(pdtest), col='red')
+#abline(b=1,a=0)
+#RMSE(exp(trainSP),exp(pdtrain))
+#RMSE(actual,exp(pdtest))
+
+print("RMSLE for All Var - Log")
+RMSE(pd_Log_LM_All,log(actual))
+RMSE(pd_Log_LM_f2,log(actual))
+RMSE(pd_Log_LM_f3,log(actual))
+
+
+```
+Try without outliers
+
+```{r}
+summary(a)
+summary(H_Lo$Exterior2nd)
+```
+
+Remove Outlier and check 
+```{r}
+a_o<-(lm(SalePrice~.,data=H_Lo[TR_RmvOut,-1])) # Removing ID 
+b_o<-lm(StepF_Log$call,data=H_Lo[TR_RmvOut,-1])
+c_o<-lm(StepS_Log$call,data=H_Lo[TR_RmvOut,-1])
+par(mfrow=c(2,2))
+plot(a_o, main='ALL Var')
+plot(b_o, main='Foward Sel')
+plot(c_o, main='Backwards El')
+plot(a_o,which=c(4))
+plot(b_o,which=c(4))
+plot(c_o,which=c(4))
+
+#pdtrain<-predict(a,newdata=H_Lo[!is.na(H_Lo$SalePrice),])
+pd_Log_LM_All_o<-predict(a_o,newdata=H_Lo[is.na(H_Lo$SalePrice),])
+pd_Log_LM_f2_o<-predict(b_o,newdata=H_Lo[is.na(H_Lo$SalePrice),])
+pd_Log_LM_f3_o<-predict(c_o,newdata=H_Lo[is.na(H_Lo$SalePrice),])
+#trainSP<-H_Lo$SalePrice[!is.na(H_Lo$SalePrice)]
+
+
+#plot(exp(trainSP),exp(pdtrain), col='blue', ylab='Prediction')
+#points(actual,exp(pdtest), col='red')
+#abline(b=1,a=0)
+#RMSE(exp(trainSP),exp(pdtrain))
+#RMSE(actual,exp(pdtest))
+
+print("RMSLE for All Var - Log")
+RMSE(pd_Log_LM_All_o,log(actual))
+RMSE(pd_Log_LM_f2_o,log(actual))
+RMSE(pd_Log_LM_f3_o,log(actual))
+
+
+
+```
+##### Lasso Applied - Only done on all variables for Lasso/Ridge/Elasticnet
+```{r}
+tc<-trainControl(method="cv", number=10)
+#rainset -DummyVariables
+H_DummyLo_Train<-  as.data.frame(model.matrix(~.-1,data=H_Lo[1:1460,-1])) # Remove ID
+
+#TestSet  -DummyVariables
+H_DummyLo_Test<-  as.data.frame(model.matrix(~.-1,data=H_Lo[1461:2919,-c(1,78)])) # RemoveID, salePrice
+  #as.data.frame
+
+dim(H_DummyLo_Train)
+
+set.seed(12334)
+
+myLasso1Log <-train(SalePrice~.,
+                 data = H_DummyLo_Train
+                 ,method='glmnet', 
+                 tuneGrid=expand.grid(alpha=1,lambda=seq(0.0001,0.01,length=51)), trControl=tc)
+myLasso2Log <-train(SalePrice~., data = H_DummyLo_Train[-c(524,1299),]
+  ,method='glmnet',tuneGrid=expand.grid(alpha=1,lambda=seq(0.0001,0.01,length=51)), trControl=tc)
+#myLasso3 <-train(f3, data = H_Dummy_Train
+#  ,method='glmnet',tuneGrid=expand.grid(alpha=1,lambda=seq(500,1500,length=50)), trControl=tc)
+#myLasso4 <-train(f4, data = H_Dummy_Train
+ # ,method='glmnet',tuneGrid=expand.grid(alpha=1,lambda=seq(500,1500,length=50)), trControl=tc)
+
+
+
+```
+
+
+```{r}
+set.seed(12334)
+
+plot(myLasso1Log, main='ALL')
+plot(myLasso2Log, main='Outlier Removed')
+
+plot(varImp(myLasso1Log), Scale=F, top=30)
+plot(varImp(myLasso2Log), Scale=F ,top=30)
+
+varImp(myLasso1Log)
+varImp(myLasso2Log)
+
+
+myLasso1Log$bestTune
+myLasso2Log$bestTune
+#myLasso3$bestTune
+#myLasso4$bestTune
+
+plot(myLasso1Log$finalModel, label=T)
+plot(myLasso2Log$finalModel ,label=T)
+#plot(myLasso3$finalModel)
+#plot(myLasso4$finalModel)
+
+
+```
+
+
+
+Predict and Measure RMSE of Log
+```{r}
+PdmyLasso1Log<-predict(myLasso1Log, newdata=H_DummyLo_Test)
+PdmyLasso2Log<-predict(myLasso2Log, newdata=H_DummyLo_Test)
+     
+
+RMSE(PdmyLasso1Log,log(actual))
+RMSE(PdmyLasso2Log,log(actual))
+```
+##### Ridge of Log
+```{r}
+set.seed(12334)
+myRidge1Log <-train(SalePrice~.,
+                  data = H_DummyLo_Train
+                 ,method='glmnet', 
+                 tuneGrid=expand.grid(alpha=0,lambda=seq(0.00001,0.08,length=51)), trControl=tc)
+set.seed(12334)
+myRidge2Log <-train(SalePrice~., data = H_DummyLo_Train[-c(524,1299),]
+  ,method='glmnet',tuneGrid=expand.grid(alpha=0,lambda=seq(0.0001,0.08,length=51)), trControl=tc) # without outlier
+
+
+```
+
+
+```{r}
+par(mfrow=c(1,2))
+plot(myRidge1Log, main='ALL')
+plot(myRidge2Log, main='Outlier Removed')
+
+plot(varImp(myRidge1Log), Scale=F, top=30,main='ALL')
+plot(varImp(myRidge2Log), Scale=F ,top=30, main='Outlier Removed')
+
+varImp(myRidge1Log,main='ALL')
+varImp(myRidge2Log,main='Outlier Removed')
+
+
+myRidge1Log$bestTune
+myRidge2Log$bestTune
+
+
+plot(myRidge1Log$finalModel,main='ALL')
+plot(myRidge2Log$finalModel,main='Outlier Removed')
+
+```
+
+```{r}
+PdmyRidge1Log<-predict(myRidge1Log, newdata=H_DummyLo_Test)
+PdmyRidge2Log<-predict(myRidge2Log, newdata=H_DummyLo_Test)
+     
+
+RMSE(PdmyRidge1Log,log(actual))
+RMSE(PdmyRidge2Log,log(actual))
+```
+##### Elasticnet of Log
+
+```{r}
+set.seed(12334)
+myEla1Log<-train(SalePrice~.,data = H_DummyLo_Train,method='glmnet',tuneGrid=expand.grid(alpha=seq(0, 1,length=11),lambda=seq(0.0001,0.1,length=30)), trControl=tc)
+set.seed(12334)
+myEla2Log<-train(SalePrice~.,data = H_DummyLo_Train[-c(524,1299),],method='glmnet',tuneGrid=expand.grid(alpha=seq(0, 1,length=11),lambda=seq(0.0001,0.1,length=30)), trControl=tc)
+
+```
+
+```{r}
+
+par(mfrow=c(1,2))
+plot(myEla1Log, main='ALL')
+plot(myEla2Log, main='Outlier Removed')
+
+#plot(varImp(myEla1Log),top=25)
+#varImp(myEla1Log)
+myEla1Log$bestTune
+myEla2Log$bestTune
+
+
+PdEla1Log<-predict(myEla1Log, newdata=H_DummyLo_Test)
+PdEla2Log<-predict(myEla2Log, newdata=H_DummyLo_Test)
+RMSE(PdEla1Log, log(actual))
+RMSE(PdEla2Log, log(actual))
+
+
+```
+Origial Lasso/Ridge/Elastic - removing outlier didn't help and actually gave worse results (barely) but once log transformed, it improved the results although little.
+
+#####Random Forest for Log
+Do a quick tuning.
+```{r}
+set.seed(100)
+tuneRF10<-tuneRF(H_Lo[1:1460,-c(1,78)],H_Lo[1:1460,78], mtryStart=16,StepFactor=1 ,improve=0.0001, Trace=T,Plot=T,ntreeTry=500, doBest = T)
+```
+
+Best ntree=32. Apply 
+rf1=randomForest(SalePrice~.,data=Train, ntree=500,mtry=32)
+```{r}
+RFLog=randomForest(SalePrice~.,data=H_Lo[TR,-1],  mtry = 32,ntree=500)
+RFLog1<-randomForest(SalePrice~.,data=H_Lo[TR_RmvOut,-1],  mtry = 32,ntree=500)
+PdRFLog<-predict(RFLog,newdata= H_Lo[1461:2919,-78])
+PdRFLog1<-predict(RFLog1,newdata= H_Lo[1461:2919,-78])
+RMSE(PdRFLog,log(actual))
+RMSE(PdRFLog1,log(actual))
+
+```
+SVM Tuning - some are texted out due to running time
+
+```{r}
+#SV1logtune1<-tune.svm(SalePrice~.,data=H_Lo[TR,-1],gamma=0.1*c(0.0001, 0.0005,0.001,0.005, 0.01, 0.15,0.2, 0.3,0.5) ,cost=1:10)
+```
+
+
+
+```{r}
+#print(SV1logtune1)
+#plot(SV1logtune1)
+#sqrt(SV1logtune1$best.performance)
+```
+
+Parameter tuning of ‘svm’:
+
+- sampling method: 10-fold cross validation 
+
+- best parameters:
+ gamma cost
+ 0.001    4
+
+- best performance: 0.01571751 
+
+Need more fining tuning up to 0.02 - 0.001    4
+'
+```{r}
+#SV1logtune2<-tune.svm(SalePrice~.,data=H_Lo[TR,-1],gamma=0.002*(1:10) ,cost=1:10)
+```
+
+
+```{r}
+#print(SV1logtune2)
+#plot(SV1logtune2)
+#sqrt(SV1logtune2$best.performance)
+```
+
+Finally try for 0.0005 to 0.005 and cost between 1 and 7 - not done due to running time.
+```{r}
+#SV1logtune3<-tune.svm(SalePrice~.,data=H_Lo[TR,-1],gamma=0.0005*(1:10) ,cost=1:7)
+```
+
+```{r}
+#print(SV1logtune3)
+#plot(SV1logtune3)
+#sqrt(SV1logtune3$best.performance)
+```
+
+Parameter tuning of ‘svm’:
+
+- sampling method: 10-fold cross validation 
+
+- best parameters:
+  gamma cost
+ 0.0035    2
+
+- best performance: 0.01617483 
+
+[1] 0.1271803
+
+
+
+
+
+
+```{r}
+SVLog1<-svm(SalePrice~.,data=H_Lo[TR,-1], gamma= 0.0035, cost=2)
+SVLog2<-svm(SalePrice~.,data=H_Lo[TR_RmvOut,-1], gamma= 0.0035, cost=2 )
+```
+
+Plot all to check.
+
+```{r}
+pdSVLog1<-predict(SVLog1, newdata=H_Lo[1461:2919,-78])
+pdSVLog2<-predict(SVLog2, newdata=H_Lo[1461:2919,-78])
+RMSE(pdSVLog1,log(actual))
+RMSE(pdSVLog2,log(actual))
+
+par(mfrow=c(1,2))
+plot(actual, exp(pdSVLog1), pch=22,col='red')
+abline(a=0,b=1)
+
+plot(log(actual),(pdSVLog1),col='red')
+abline(a=0,b=1)
+
+
+par(mfrow=c(1,2))
+plot(actual, exp(PdRFLog), col='blue')
+abline(a=0,b=1)
+plot(log(actual),(PdRFLog),col='blue')
+abline(a=0,b=1)
+
+
+
+
+
+par(mfrow=c(1,2))
+plot(actual, exp(pd_Log_LM_All_o), col='green')
+abline(a=0,b=1)
+plot(log(actual),(pd_Log_LM_All_o), pch=20,col='green')
+abline(a=0,b=1)
+
+par(mfrow=c(1,2))
+plot(actual, exp(PdmyLasso2Log), col='green')
+abline(a=0,b=1)
+plot(log(actual),(PdmyLasso2Log),col='green')
+abline(a=0,b=1)
+
+
+par(mfrow=c(1,2))
+plot(actual, exp(PdEla2Log), col='green')
+abline(a=0,b=1)
+plot(log(actual),(PdEla2Log),col='green')
+abline(a=0,b=1)
+
+
+```
