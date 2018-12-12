@@ -25,6 +25,13 @@ Also working on Lasso/Ridge/Elasticnet.
 
 Step 4.2 : Quantile Regression - Encountering many errors. Working on it.
 
+Step 5 : Tuning
+5.1 Random Forest Tuning : Tuning for mtry - found mtry but did not enhance the result (default tree n_variable/3 was close enough)
+5.2 SVM Tuning - slight improvement of 0.1238034 from 
+However, due to time consumption of the tuning (and errors of maximum iteration after 16+ hours), the tuning was not done extensively as ideal. Also tuning was done in multiple steps instead of covering big areas to avoid long running times.
+5.3 Inflation : Inflation factor was calculated but did not make significant improvement. 
+5.4 Log Transformation, outlier & a little bit of feature engineering 
+
 
 
 
