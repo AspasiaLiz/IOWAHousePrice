@@ -1,0 +1,370 @@
+---
+title: "136_Liz_Project_Step5_SVM Playground"
+author: "Hyunkyung Kim"
+date: "December 4, 2018"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
+```{r}
+#install.packages("glmnet")
+#install.packages("mlbench")
+#install.packages("Boruta")
+library(caret)
+library(tidyverse)
+library(psych)
+library(glmnet)
+library(mlbench)
+library(Boruta)
+library(MASS) # stepwise regression
+library(leaps) # all subsets regression
+library(randomForest)
+library(MLmetrics)
+library(e1071)
+```
+
+### Import Cleaned Data
+
+```{r}
+
+H_Clean<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\H_clean.csv")
+
+Train<-H_Clean[!is.na(H_Clean$SalePrice),-1] #Remove ID
+Test<-H_Clean[is.na(H_Clean$SalePrice),-1] 
+actual<-read.csv( file = "C:\\Users\\Hyunkyung Kim\\Desktop\\CKME999\\136\\dataset\\all\\AMES_test.csv")[1461:2919,2] # Test Price
+#Remove Utilities - only one exception and is causing issues. Also will result in huge variance
+
+tc<-trainControl(method="cv", number=10)
+
+Train11<-Train[,names(Train)!="Utilities"]
+```
+
+
+
+
+```{r}
+f2<-SalePrice ~ OverallQual + GrLivArea + Neighborhood + BsmtFinSF1 + 
+    RoofMatl + MSSubClass + BsmtExposure + KitchenQual + Condition2 + 
+    SaleCondition + LotArea + YearBuilt + OverallCond + MasVnrArea + 
+    PoolQC + BedroomAbvGr + GarageCars + MasVnrType + TotalBsmtSF + 
+    BldgType + Functional + ExterQual + BsmtCond + Condition1 + 
+    Exterior1st + MoSold + GarageCond + ScreenPorch + LandContour + 
+    LowQualFinSF + LotConfig + LotFrontage + TotRmsAbvGrd + KitchenAbvGr + 
+    WoodDeckSF + Street + GarageArea + LotShape + BsmtQual + 
+    Fireplaces + FireplaceQu + PoolArea + RoofStyle + BsmtFinSF2 + 
+     ExterCond # Utilities Removed
+f3<- SalePrice ~ LotFrontage + LotArea + Street + LotShape + LandContour + 
+    + LotConfig + Neighborhood + Condition1 + Condition2 + 
+    BldgType + HouseStyle + OverallQual + OverallCond + YearBuilt + 
+    RoofMatl + Exterior1st + MasVnrType + MasVnrArea + ExterQual + 
+    ExterCond + Foundation + BsmtQual + BsmtCond + BsmtExposure + 
+    BsmtFinSF1 + BsmtFinSF2 + BsmtUnfSF + X1stFlrSF + X2ndFlrSF + 
+    HalfBath + BedroomAbvGr + KitchenAbvGr + KitchenQual + TotRmsAbvGrd + 
+    Functional + Fireplaces + FireplaceQu + GarageType + GarageCars + 
+    GarageArea + WoodDeckSF + X3SsnPorch + ScreenPorch + PoolQC + 
+    Fence + MiscFeature + MoSold + SaleCondition    # Utilities Removed - because tuning was done without it - error otherwise.
+
+f4<-SalePrice ~MSSubClass+MSZoning+LotFrontage+LotArea+Alley+LotShape+LandContour+LandSlope+Neighborhood+
+BldgType+HouseStyle+OverallQual+OverallCond+YearBuilt+YearRemodAdd+RoofStyle+Exterior1st+Exterior2nd+
+MasVnrType+MasVnrArea+ExterQual+Foundation+BsmtQual+BsmtCond+BsmtExposure+BsmtFinType1+BsmtFinSF1+
+BsmtFinType2+BsmtUnfSF+TotalBsmtSF+HeatingQC+CentralAir+X1stFlrSF+X2ndFlrSF+GrLivArea+BsmtFullBath+
+FullBath+HalfBath+BedroomAbvGr+KitchenAbvGr+KitchenQual+TotRmsAbvGrd+Fireplaces+FireplaceQu+GarageType+
+GarageYrBlt+GarageFinish+GarageCars+GarageArea+GarageQual+GarageCond+PavedDrive+WoodDeckSF+OpenPorchSF
+
+```
+
+
+Radial SVM - best tuned without big anomalies. 524, 1299
+```{r}
+SV1<-svm(SalePrice~.,data=Train11, cost=2.25, gamma=0.0035)
+SV2<-svm(SalePrice~.,data=Train11[-c(524,1299),], cost=2.25, gamma=0.0035)
+#SV2<-svm(f2,data=Train,cost=4)
+SV3<-svm(f4,data=Train11[-c(524,1299),],gamma= 0.007,  cost=1.5, espilon=0.06)    
+SV4<-svm(f4, data=Train11[,], cost=1.5, gamma=0.007, epsilon=0.06)
+
+
+
+
+pdSV1<-predict(SV1,newdata=Test[,-80])
+pdSV2<-predict(SV2,newdata=Test[,-80])
+pdSV3<-predict(SV3,newdata=Test[,-80])
+pdSV4<-predict(SV4,newdata=Test[,-80])
+
+
+
+summary(SV1)
+par(mfrow=c(1,2))
+plot(actual,pdSV2,pch=3, col='blue',main='Pred VS Actual, All var, outlier Rmv')
+abline(a=0,b=1)
+plot(log(actual),log(pdSV2),pch=3, col='blue',main='Pred VS Actual, All var, outlier Rmv')
+abline(a=0,b=1)
+
+plot(actual,pdSV1,pch=3, main='Pred VS Actual, All var')
+abline(a=0,b=1)
+plot(actual,pdSV2,pch=3, col='blue',main='Pred VS Actual, All var, outlier Rmv')
+abline(a=0,b=1)
+plot(actual,pdSV3,pch=3, col='red',main='Pred VS Actual,Boruta')
+abline(a=0,b=1)
+plot(actual,pdSV4,pch=3, col='green',main='Pred VS Actual,Boruta , Outlier Rmv')
+abline(a=0,b=1)
+
+
+
+print("Test RMSLE & RMSE")
+RMSE(log(pdSV1),log(actual))
+RMSE(log(pdSV2),log(actual))
+RMSE(log(pdSV3),log(actual))
+RMSE(log(pdSV4),log(actual))
+RMSLE(pdSV1,actual)
+RMSLE(pdSV2,actual)
+RMSLE(pdSV3,actual)
+RMSLE(pdSV4,actual)
+
+#RMSE(pdSV1,actual)
+#RMSE(pdSV2,actual)
+#RMSE(pdSV3,actual)
+#RMSE(pdSV4,actual)
+```
+
+[1] "Test RMSLE & RMSE" - epsilon not defined
+[1] 0.1236311
+[1] 0.1239871
+[1] 0.1280652
+[1] 0.127133
+
+[1] "Test RMSLE & RMSE" - epsilon 0.06
+[1] 0.1239504
+[1] 0.1241208
+[1] 0.1280652
+[1] 0.1259828
+
+
+
+Linear SVM Using Radial Tuned SVM parameters
+
+```{r}
+SVl1<-svm(SalePrice~.,data=Train11, cost=2.25, epsilon=0.06,kernel='linear')
+SVl2<-svm(f2,data=Train11,epsilon=0.06, cost=2.25,kernel='linear')
+SVl3<-svm(f3,data=Train11,cost=2.25, epsilon=0.06,kernel='linear')  
+SVl4<-svm(f4, data=Train11,cost=1.5,  epsilon=0.06, kernel='linear')
+
+
+pdSVl1<-predict(SVl1,newdata=Test[,-80])
+pdSVl2<-predict(SVl2,newdata=Test[,-80])
+pdSVl3<-predict(SVl3,newdata=Test[,-80])
+pdSVl4<-predict(SVl4,newdata=Test[,-80])
+
+pdSVl01<-predict(SVl1,newdata=Train[,-80])
+pdSVl02<-predict(SVl2,newdata=Train[,-80])
+pdSVl03<-predict(SVl3,newdata=Train[,-80])
+pdSVl04<-predict(SVl4,newdata=Train[,-80])
+
+
+summary(SVl1)
+par(mfrow=c(1,2))
+plot(actual,pdSVl1,pch=3, main='Prediction VS Actual, all var')
+abline(a=0,b=1)
+#plot(actual,pdSVl2,pch=3, col='blue',main='Pred VS Actual, FowardSelect')
+#abline(a=0,b=1)
+plot(actual,pdSVl3,pch=3, col='red',main='Pred VS Actual, BackwardElim')
+abline(a=0,b=1)
+plot(actual,pdSVl4,pch=3, col='green',main='Pred VS Actual, Boruta')
+abline(a=0,b=1)
+```
+
+```{r}
+
+print("Test RMSLE " )
+RMSLE(pdSVl1,actual)
+RMSLE(pdSVl2,actual)
+RMSLE(pdSVl3,actual)
+RMSLE(pdSVl4,actual)
+
+```
+Train[,names(Train)!="Utilities"]
+#### POLYNOMIAL SVM
+
+Degree =2 
+
+```{r}
+SVp1<-svm(SalePrice~.,data=Train11, cost=2.25, gamma=  0.0035, degree=2, kernel='polynomial')
+SVp2<-svm(f2,data=Train11, cost=2.25,degree=2, gamma=  0.0035,kernel='polynomial')
+SVp3<-svm(f3,data=Train11,cost=2.25 ,degree=2,gamma=  0.0035, kernel='polynomial')
+SVp4<-svm(f4,data=Train11,cost=1.5, degree=2,gamma=  0.007, kernel='polynomial')
+
+
+pdSVp1<-predict(SVp1,newdata=Test[,-80])
+pdSVp2<-predict(SVp2,newdata=Test[,-80])
+pdSVp3<-predict(SVp3,newdata=Test[,-80])
+pdSVp4<-predict(SVp4,newdata=Test[,-80])
+
+
+summary(SVp1)
+summary(SVp2)
+```
+
+
+
+
+
+```{r}
+par(mfrow=c(1,2))
+plot(actual,pdSVp1,pch=3, main='Prediction VS Actual, all var')
+abline(a=0,b=1)
+plot(actual,pdSVp2,pch=3, col='blue',main='Prediction VS Actual, FowardSelect')
+abline(a=0,b=1)
+plot(actual,pdSVp3,pch=3, col='red',main='Prediction VS Actual, Backwards Elim')
+abline(a=0,b=1)
+plot(actual,pdSVp4,pch=3, col='green',main='Prediction VS Actual, Boruta')
+abline(a=0,b=1)
+
+print("Test RMSLE")
+RMSLE(pdSVp1,actual)
+RMSLE(pdSVp2,actual)
+RMSLE(pdSVp3,actual)
+RMSLE(pdSVp4,actual)
+
+```
+Have issue with one point that is low price but prediced high for all. This is a very big difference. Would like to investigate this.
+
+Polynomial with degree 3 (default)
+```{r}
+SVp31<-svm(SalePrice~.,data=Train11, cost=2.25, gamma=  0.0035, kernel='polynomial')
+SVp32<-svm(f2,data=Train11, cost=2.25, gamma=  0.0035,kernel='polynomial')
+SVp33<-svm(f3,data=Train11,cost=2.25 ,gamma=  0.0035, kernel='polynomial')
+SVp34<-svm(f4,data=Train11,cost=1.5, gamma=  0.007, kernel='polynomial')
+
+
+pdSVp31<-predict(SVp31,newdata=Test[,-80])
+pdSVp32<-predict(SVp32,newdata=Test[,-80])
+pdSVp33<-predict(SVp33,newdata=Test[,-80])
+pdSVp34<-predict(SVp34,newdata=Test[,-80])
+
+#pdSVl1101<-predict(SVl111,newdata=Train[,-80])
+#pdSVl1102<-predict(SVl112,newdata=Train[,-80])
+#pdSVl1103<-predict(SVl113,newdata=Train[,-80])
+#pdSVl1104<-predict(SVl114,newdata=Train[,-80])
+
+
+summary(SVp31)
+summary(SVp32)
+```
+
+```{r}
+par(mfrow=c(1,2))
+plot(actual,pdSVp33,pch=3, col='red',main='Prediction VS Actual, Backwards Elim')
+abline(a=0,b=1)
+plot(actual,pdSVp34,pch=3, col='green',main='Prediction VS Actual, Boruta')
+abline(a=0,b=1)
+plot(actual,pdSVp31,pch=3, main='Prediction VS Actual, all var')
+abline(a=0,b=1)
+plot(actual,pdSVp32,pch=3, col='blue',main='Prediction VS Actual, FowardSelect')
+abline(a=0,b=1)
+
+
+print("Test RMSLE")
+RMSLE(pdSVp31,actual)
+RMSLE(pdSVp32,actual)
+RMSLE(pdSVp33,actual)
+RMSLE(pdSVp34,actual)
+
+
+```
+
+SVM - Sigmoid
+```{r}
+SVs1<-svm(SalePrice~.,data=Train11, cost=2.25, gamma=  0.0035, kernel='sigmoid')
+SVs2<-svm(f2,data=Train11, cost=2.25, gamma=  0.0035,kernel='sigmoid')
+SVs3<-svm(f3,data=Train11,cost=2.25 ,gamma=  0.0035, kernel='sigmoid')
+SVs4<-svm(f4,data=Train11,cost=1.5, gamma=  0.007, kernel='sigmoid')
+
+
+pdSVs1<-predict(SVs1,newdata=Test[,-80])
+pdSVs2<-predict(SVs2,newdata=Test[,-80])
+pdSVs3<-predict(SVs3,newdata=Test[,-80])
+pdSVs4<-predict(SVs4,newdata=Test[,-80])
+
+#pdSVl1101<-predict(SVl111,newdata=Train[,-80])
+#pdSVl1102<-predict(SVl112,newdata=Train[,-80])
+#pdSVl1103<-predict(SVl113,newdata=Train[,-80])
+#pdSVl1104<-predict(SVl114,newdata=Train[,-80])
+
+
+summary(SVs1)
+summary(SVs2)
+```
+SVM - Sigmoid : Disaster. RMSE cannot be calculated.
+```{r}
+par(mfrow=c(1,2))
+plot(actual,pdSVs1,pch=3, col='red',main='Prediction VS Actual, Backwards Elim')
+abline(a=0,b=1)
+plot(actual,pdSVs2,pch=3, col='green',main='Prediction VS Actual, Boruta')
+abline(a=0,b=1)
+plot(actual,pdSVs3,pch=3, main='Prediction VS Actual, all var')
+abline(a=0,b=1)
+plot(actual,pdSVs4,pch=3, col='blue',main='Prediction VS Actual, FowardSelect')
+abline(a=0,b=1)
+
+
+print("Test RMSLE")
+RMSLE(pdSVs1,actual)
+RMSLE(pdSVs2,actual)
+RMSLE(pdSVs3,actual)
+RMSLE(pdSVs4,actual)
+
+
+```
+
+
+TUNING FOR LINEAR DO NOT RUN
+
+```{r, eval=F}
+SV_Lin_tune1<-tune.svm(SalePrice~.,data=Train11,cost=c(20,10,1), kernel='linear')
+```
+
+
+```{r, eval=F}
+plot(SV_Lin_tune1)
+```
+
+
+
+
+```{r, eval=F}
+print(SV_Lin_tune1)
+sqrt(SV_Lin_tune1$best.performance)
+```
+
+```{r, eval=F}
+SV_Lin_tune2<-tune.svm(SalePrice~.,data=Train11,cost=c(5,0.5), kernel='linear')
+```
+
+
+```{r, eval=F}
+Train11<-Train[,names(Train)!='Utilities']
+SV_Lin_tune12<-tune.svm(SalePrice~.,data=Train11,cost=seq(1,21,2),gamma=seq(1,21,2))
+```
+
+
+```{r, eval=F}
+plot(SV_Lin_tune12)
+```
+
+
+
+```{r, eval=F}
+print(SV_Lin_tune12)
+sqrt(SV_Lin_tune12$best.performance)
+```
+
+```{r, eval=F}
+SV_Lin_tune13<-tune.svm(SalePrice~.,data=Train11,cost=c(2,5,0.5),gamma=seq(0.5,1.5,0.1))
+```
+
